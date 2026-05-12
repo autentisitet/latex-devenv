@@ -22,7 +22,7 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 
 ## ⚠️ Prerequisite & Notices <a id="prerequisites"></a>
 
-> **CAUTION: Execution Policy****
+> **CAUTION: Execution Policy**
 >
 > `Windows PowerShell` restricts script execution by default. To authorize the local toolchain, execute the following in an Admin session once:
 >
@@ -126,10 +126,10 @@ chmod +x ltx-build.sh && ./ltx-build.sh "./template/lab-report_template/main.tex
 **Logic Parameters:**
 
 | Function | PowerShell (Windows) | Bash (Linux/macOS) | Description |
-| --- | --- | --- | --- |
-| **Entry Point** | `-Template`or`Pos 0` | `$1` | Defines the entry point (Defaults to `main.tex`) |
-| **Cleanup** | `-Clean`or`-c` | `-c`or`--clean` | Purges 20+ transient auxiliary extensions before building |
-| **-Help** | `-Help`or`-h`or`-?` | `--help`or`-h` | Displays the help documentation |
+| :--- | :--- | :--- | :--- |
+| **Entry Point** | `-Template` or `Pos 0` | `$1` | Defines the entry point (Defaults to `main.tex`) |
+| **Cleanup** | `-Clean` or `-c` | `-c` or `--clean` | Purges 20+ transient auxiliary extensions before building |
+| **-Help** | `-Help` or `-h`or`-?` | `--help` or `-h` | Displays the help documentation |
 
 ---
 

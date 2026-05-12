@@ -1,0 +1,137 @@
+<#
+.SYNOPSIS
+    LaTeX Build Engine - Optimized for template library.
+
+.DESCRIPTION
+    Uses xelatex for dual-pass compilation, with automatic dependency audit and environment check.
+
+.PARAMETER Template
+    Specifies the .tex entry file to compile (e.g., lab-report/main.tex).
+    Default value is "main.tex".
+
+.PARAMETER Clean
+    Switch parameter. If enabled, cleans all LaTeX cache and intermediate files before compilation.
+
+.PARAMETER Help
+    Show this help message.
+
+.EXAMPLE
+    .\ltx-build.ps1 -Template ".\template\lab-report_template\main.tex" -Clean
+#>
+
+param(
+    [Parameter(Position = 0)]
+    [string]$Template = "main.tex",
+
+    [Alias("c")]
+    [switch]$Clean,
+
+
+    [Alias("h", "?")]
+    [switch]$Help = $false
+)
+
+if ($Help) {
+    Get-Help $PSCommandPath
+    exit
+}
+
+
+# ---------------------------------------------------------
+# 1. Visual header (always visible, useful for CI log search)
+# ---------------------------------------------------------
+Write-Host "========================================" -ForegroundColor Magenta
+Write-Host "  LtxEngine: Automated Build Pipeline" -ForegroundColor Cyan
+Write-Host "  Target: $Template" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Magenta
+
+# Check source file
+if (-not (Test-Path $Template)) {
+    Write-Error "Error: Template file [$Template] not found"
+    exit 1
+}
+
+# Check compiler
+if (-not (Get-Command xelatex -ErrorAction SilentlyContinue)) {
+    Write-Error "xelatex is not ready. Please ensure MiKTeX or TeX Live is added to PATH."
+    Write-Host "Recommend installing via Scoop: scoop install miktex" -ForegroundColor Yellow
+    exit 1
+}
+
+# ---------------------------------------------------------
+# 2. Environment audit (dependency check)
+# ---------------------------------------------------------
+function Get-RequiredPackages {
+    param([string]$Path)
+    $content = Get-Content $Path -Raw -ErrorAction SilentlyContinue
+    if (-not $content) { return @() }
+
+    $regex = '\\(?:usepackage|RequirePackage)(?:\[[^\]]*\])?\s*\{([^}]+)\}'
+    $matchList = [regex]::Matches($content, $regex)
+
+    $packages = foreach ($m in $matchList) {
+        $m.Groups[1].Value -split ',' | ForEach-Object { $_.Trim() }
+    }
+    return $packages | Select-Object -Unique
+}
+
+$needed = Get-RequiredPackages -Path $Template
+$missing = @()
+
+foreach ($pkg in $needed) {
+    $found = (kpsewhich "$pkg.sty" 2>$null) -or (kpsewhich "$pkg.cls" 2>$null)
+    if (-not $found) { $missing += $pkg }
+}
+
+if ($missing.Count -gt 0) {
+    Write-Host "[!] Hint: Local packages not found: $($missing -join ', ')" -ForegroundColor Yellow
+    Write-Host "    MiKTeX will start Auto-Install mode to silently download them." -ForegroundColor Gray
+}
+
+# ---------------------------------------------------------
+# 3. Perform cleanup (based on -Clean switch)
+# ---------------------------------------------------------
+if ($Clean) {
+    Write-Host ">>> Performing forced cleanup (-Clean) ..." -ForegroundColor Cyan
+    # Clean up junk files in current directory and subdirectories
+    $exts = @("*.aux", "*.nav", "*.snm", "*.toc", "*.out", "*.log", "*.fls", "*.fdb_latexmk", "*.synctex.gz")
+    Get-ChildItem -Path "." -Include $exts -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
+    Write-Host "Cleanup completed." -ForegroundColor Green
+}
+
+# ---------------------------------------------------------
+# 4. Core compilation logic
+# ---------------------------------------------------------
+$baseName = [System.IO.Path]::GetFileNameWithoutExtension($Template)
+
+function Invoke-Compile {
+    param([string]$StepName)
+    Write-Host "`n>>> $StepName" -ForegroundColor Cyan
+
+    # Perform compilation (interaction=nonstopmode is critical for CI runs)
+    & xelatex -interaction=nonstopmode -halt-on-error $Template
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "`n[!] Compilation failed, exit code: $LASTEXITCODE" -ForegroundColor Red
+        $log = "$baseName.log"
+        if (Test-Path $log) {
+            Write-Host "--- Error log summary ($log) ---" -ForegroundColor Red
+            Get-Content $log | Select-String -Pattern "!\s+(LaTeX|Package|Class)" | Select-Object -Last 5
+        }
+        exit 1
+    }
+}
+
+Invoke-Compile -StepName "First pass (generate auxiliary indices)"
+Invoke-Compile -StepName "Second pass (resolve cross-references/TOC)"
+
+# ---------------------------------------------------------
+# 5. Result validation
+# ---------------------------------------------------------
+$pdf = "$baseName.pdf"
+if (Test-Path $pdf) {
+    Write-Host "`n[✔] Success: $pdf has been generated!" -ForegroundColor Green
+} else {
+    Write-Host "`n[✘] Failure: Could not generate PDF file." -ForegroundColor Red
+    exit 1
+}

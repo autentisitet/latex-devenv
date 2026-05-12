@@ -1,0 +1,167 @@
+name: LtxEngine CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]  # Trigger Release
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+
+
+jobs:
+  # ------------------------------------------
+  # --- Task 1: Linux Compilation and Script Auditing ---
+  # ------------------------------------------
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      - name: Cache TeX Live
+        uses: actions/cache@v4
+        with:
+          path: ~/texlive
+          key: ${{ runner.os }}-texlive-${{ hashFiles('**/*.tex' , 'installer.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-texlive-
+
+
+      - name: Setup LaTeX Environment (Linux)
+        run: |
+          chmod +x ./installer.sh
+          ./installer.sh
+
+
+      - name: Execute Build Engine (.sh)
+        run: |
+          chmod +x ./ltx-build.sh
+          declare -a templates=(
+            "lab-report_template/main.tex"
+            "paper-slides_template/main.tex"
+            "ppt_template/main.tex"
+          )
+
+          for template in ${ templates[@] }; do
+            echo "::group::Building $template"
+            ./ltx-build.sh "$template" --clean
+            echo "::endgroup::"
+          done
+
+
+      - name: Archive Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-assets-linux
+          path: "**/*.pdf"
+          if-no-files-found: error
+
+
+  # ------------------------------------------
+  # --- Task 2: Windows Environment Script Verification ---
+  # ------------------------------------------
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      - name: Cache Scoop Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/scoop
+          key: ${{ runner.os }}-scoop-${{ hashFiles('installer.ps1') }}
+          restore-keys: |
+            ${{ runner.os }}-scoop-
+
+
+      - name: Cache MiKTeX Data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/AppData/Local/MiKTeX
+            ~/AppData/Roaming/MiKTeX
+          key: ${{ runner.os }}-miktex-data-${{ hashFiles('**/*.tex') }}
+          restore-keys: |
+            ${{ runner.os }}-miktex-data-
+
+      - name: Initialize Scoop Environment
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+          if (!(Test-Path "$env:USERPROFILE\scoop")) {
+              irm get.scoop.sh | iex
+          }
+          scoop install 7zip git aria2
+          $latestPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+          $latestPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Setup LaTeX Environment (Windows)
+        shell: powershell
+        run: |
+          .\installer.ps1
+
+
+      - name: Execute Build Engine (.ps1)
+        shell: powershell
+        run: |
+          $templates = @(
+            "lab-report_template/main.tex"
+            "paper-slides_template/main.tex"
+            "ppt_template/main.tex"
+          )
+
+          foreach ($template in $templates) {
+            Write-Host "::group::Building $template"
+            .\ltx-build.ps1 -Template $template -Clean
+            Write-Host "::endgroup::"
+          }
+
+
+      - name: Archive Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-assets-windows
+          path: "**/*.pdf"
+          if-no-files-found: error
+
+
+
+
+  # ------------------------------------------
+  # --- Task 3: Automated Delivery (GitHub Release) ---
+  # ------------------------------------------
+  release:
+    needs: [build-linux, build-windows]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/          # Download to unified directory
+
+      - name: Organize Release Files
+        run: |
+          mkdir release-assets
+          find . -name "*.pdf" -exec cp {} release-assets/ \;
+          echo "Collected $(ls release-assets/*.pdf 2>/dev/null | wc -l) PDF files"
+          ls -la release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "LaTeX Release ${{ github.ref_name }}"
+          body: |
+            ## 📄 Compiled LaTeX Documents
+
+            This release contains PDFs built across Linux and Windows environments.
+          files: "release-assets/*.pdf"
+          generate_release_notes: true
+          fail_on_unmatched_files: true

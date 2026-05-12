@@ -1,0 +1,52 @@
+# --- LaTeX core auxiliary files (compilation debris) ---
+**/*.aux
+**/*.log
+**/*.toc
+**/*.lof
+**/*.lot
+**/*.out
+**/*.bbl
+**/*.blg
+**/*.fdb_latexmk
+**/*.fls
+**/*.synctex.gz
+**/*.pdfsync
+
+# --- Bibliography cache files ---
+**/*.bib.bak
+**/*.bib~
+**/*.sav
+
+# --- Index and special package intermediates ---
+**/*.idx
+**/*.ilg
+**/*.ind
+**/*.ist
+**/*.glg
+**/*.glo
+**/*.gls
+**/*.acn
+**/*.acr
+**/*.alg
+**/*.nlo
+**/*.nls
+**/*.vrb
+**/*.snm
+**/*.nav
+
+# --- Automation build tool intermediates (latexmk, tikz, etc.) ---
+**/missing.lst
+**/*.run.xml
+**/*-blx.bib
+**/*.bcf
+**/*.xdv
+
+# --- Final artifacts (optional) ---
+# Uncomment the line below if you want to keep PDFs in Git
+# **/*.pdf
+
+# --- OS and IDE related ---
+**/.DS_Store
+**/Thumbs.db
+**/.vscode/
+**/.idea/

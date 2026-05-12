@@ -1,0 +1,65 @@
+% ============================================================
+%   report-style.sty —— Lab Report Style File
+% ============================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{report-style}[2026/05/11 v1.0 Lab Report Style]
+
+% ---------- Dependency Packages ----------
+\RequirePackage{ctex}
+\RequirePackage{geometry}
+\RequirePackage{setspace}
+\RequirePackage{array}
+\RequirePackage{tabularx}
+\RequirePackage{listings}
+\RequirePackage{xcolor}
+\RequirePackage{enumitem}
+\RequirePackage[breakable]{tcolorbox}
+\RequirePackage{graphicx}
+\RequirePackage{url}
+
+% ---------- Page Layout Settings ----------
+\geometry{top=3cm, bottom=3cm, left=2.5cm, right=2.5cm}
+\pagestyle{empty}
+
+% ---------- Global Code Block Settings (listings) ----------
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    frame=single,
+    breaklines=true,
+    captionpos=b,
+    literate={_}{\textunderscore}1,
+    backgroundcolor=\color{gray!10},
+}
+
+% ---------- TColorBox for Lab Content Sections ----------
+% Usage:
+%   \begin{labbox}{Title}{Height (Ignored, auto-adjusts to content)}
+%       Content (Supports nesting: listings, enumerate, etc.)
+%   \end{labbox}
+% Note: The second parameter is kept for backward compatibility.
+
+\newenvironment{labbox}[2]{%
+    \begin{tcolorbox}[
+        arc=0pt,
+        outer arc=0pt,
+        boxrule=0.4pt,
+        colback=white,
+        colframe=black,
+        left=6pt, right=6pt,
+        top=6pt, bottom=6pt,
+        before skip=0pt,
+        after skip=8pt,
+        width=\textwidth,
+        breakable,
+    ]%
+    \noindent\textbf{#1}\par\vspace{0.2cm}%
+}{%
+    \end{tcolorbox}%
+}

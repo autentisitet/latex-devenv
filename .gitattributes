@@ -1,0 +1,18 @@
+# Force shell scripts to use LF
+*.sh text eol=lf
+
+# Force PowerShell scripts to use CRLF
+*.ps1 text eol=crlf
+
+# Automatic processing of other text files
+*.md text
+*.tex text
+LICENSE text
+
+
+# Ensure that binary files are not modified by Git using newline characters
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ttf binary
+*.otf binary

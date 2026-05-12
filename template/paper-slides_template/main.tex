@@ -1,0 +1,104 @@
+% main.tex
+% Main document: only content, no layout code
+\documentclass[a4paper, 12pt]{article}
+\input{setup.tex}
+
+\begin{document}
+
+% ---------- Cover ----------
+\mytitle
+  {Project / Thesis Title}
+  {Your Name}
+  {May 2025}
+
+% ---------- Table of Contents ----------
+\tableofcontents
+\newpage
+
+% ---------- Chapter 1 ----------
+\section{Background and Motivation}
+
+\begin{itemize}
+  \item First key point
+  \item Second key point
+\end{itemize}
+
+\begin{infobox}{Core Idea}
+  This is an important summary of the current slide.
+\end{infobox}
+
+\subsec{Example Equation (with Explanation)}
+
+\eqnexplain{E = mc^2}{
+  \textbf{where:}
+  \begin{itemize}
+    \item $E$: energy (J)
+    \item $m$: mass (kg)
+    \item $c$: speed of light ($3 \times 10^8$ m/s)
+  \end{itemize}
+}
+
+\subsec{Long Equation with Explanation}
+
+\eqnexplain{
+  f(x) = a_1 x + a_2 x^2 + a_3 x^3 + a_4 x^4 + a_5 x^5 + a_6 x^6 + a_7 x^7 + a_8 x^8 + a_9 x^9 + a_{10} x^{10}
+}{
+  \textbf{where:}
+  \begin{itemize}
+    \item $a_i$: coefficient for term $i$
+    \item $x$: input variable
+  \end{itemize}
+}
+
+\newpage
+
+\section{Methodology}
+
+\subsec{Dataset}
+
+\begin{itemize}
+  \item Dataset description
+  \item Preprocessing steps
+\end{itemize}
+
+\subsec{Model Architecture}
+
+\eqnexplain{
+  \text{Loss} = \frac{1}{N} \sum_{i=1}^{N} (y_i - \hat{y}_i)^2
+}{
+  \textbf{where:}
+  \begin{itemize}
+    \item $N$: number of samples
+    \item $y_i$: ground truth
+    \item $\hat{y}_i$: predicted value
+  \end{itemize}
+}
+
+\newpage
+
+\section{Experimental Results}
+
+\begin{alertbox}{Important Finding}
+  The proposed method achieves 95\% accuracy.
+\end{alertbox}
+
+\subsec{Comparison}
+
+\begin{itemize}
+  \item Baseline: 89\%
+  \item Ours: 95\%
+\end{itemize}
+
+\newpage
+
+\section{Conclusion and Future Work}
+
+\begin{itemize}
+  \item Conclusion 1
+  \item Future direction
+\end{itemize}
+
+\qa
+\thankspage
+
+\end{document}

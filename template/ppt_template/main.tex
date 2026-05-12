@@ -1,0 +1,108 @@
+%!TeX program = xelatex
+\input{config.tex}
+
+\useSmallCircleItem
+\UseSongFont % Utilizing Serif/Songti theme for a professional look
+
+\begin{document}
+
+% --- Title Page ---
+% Replace these with your actual details
+\newcommand{\mytitle}{Investigation of [Your Subject] Using [Your Method]}
+\newcommand{\myauthor}{xxxxxxxxxxxxxxxx}
+\newcommand{\myinstitute}{xxxxxxxxxxxx \\ ############}
+
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture, overlay]
+    % Header Decoration
+    \node[fill=midblue, minimum width=\paperwidth, minimum height=0.5\paperheight, anchor=north]
+          at ([yshift=+1pt]current page.north) {};
+
+    % Main Title
+    \node[text=white, font=\fontsize{28}{32}\selectfont\bfseries, text width=0.8\paperwidth, align=center]
+          at ([yshift=-0.25\paperheight]current page.north) {\mytitle};
+
+    % Credentials
+    \node[text=black, font=\Large\bfseries] at ([yshift=-1.5cm]current page.center) {\myauthor};
+    \node[text=black, font=\large, align=center] at ([yshift=-2.8cm]current page.center) {\myinstitute};
+  \end{tikzpicture}
+\end{frame}
+
+% --- Table of Contents ---
+\begin{frame}{Presentation Roadmap}
+  \vspace{1em}
+  \begin{enumerate}
+    \item zzzzzzzzzzzzzzzz
+    \item xxxxxxxxxxxxxxxx
+    \item yyyyyyyyyyyyyyyy
+    \item oooooooooooooooo
+  \end{enumerate}
+\end{frame}
+
+% --- Equation Derivation Page ---
+\begin{frame}{Performance Assessment Metrics}
+  \textbf{Global Efficiency Score}: The following metric accounts for both modular performance and stochastic environmental variance.
+
+  \BehindEqBox{
+    $\displaystyle
+    S = \underbrace{\sum_{i=1}^{N} \textcolor{myorange}{\omega_i}\, \textcolor{mygreen}{\sigma_i}}_{\text{Weighted Modular Score}} \;+\;
+    \overbrace{\left( {\frac{1}{N} \sum_{j=1}^{M} \textcolor{myred}{\delta_j} \cdot \prod_{k=1}^{K} \phi(x_k)} \right)}^{\text{Environmental Correction Factor}}
+    $
+  }
+
+  \begin{adjustbox}{max width=\textwidth}
+  \[
+    \left\{
+    \begin{aligned}
+      \textcolor{mygreen}{\sigma_i} &\;=\; \text{Performance coefficient for the } i\text{-th localized module}, \\
+      \textcolor{myorange}{\omega_i} &\;=\; \text{Dynamic weight optimized via gradient descent}, \\
+      \textcolor{myred}{\delta_j} &\;=\; \text{Error residual attributed to environmental factor } j.
+    \end{aligned}
+    \right.
+  \]
+  \end{adjustbox}
+
+  \vspace{0.5em}
+  \small \textbf{Note:} The correction factor is auto-scaled using \texttt{adjustbox} to maintain legibility regardless of term length.
+\end{frame}
+
+% --- Block Emphasis Page ---
+\begin{frame}{Optimization Strategies}
+  Standardization of emphasis components ensures visual consistency across the deck.
+
+  \begin{block}{Model Convergence}
+    We assume the loss function is Lipschitz continuous to ensure global convergence under the specified learning rate.
+  \end{block}
+
+  \begin{alertblock}{Critical Vulnerability}
+    Vanishing gradients may occur if the activation functions are not properly normalized during the initial heating phase.
+  \end{alertblock}
+
+  \begin{exampleblock}{Key Technical Insights}
+    \begin{itemize}
+        \item \textbf{Consistency:} Visual blocks allow for rapid scanning of core conclusions.
+        \item \textbf{Safety:} Alert blocks should be reserved for edge cases and safety constraints.
+    \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
+% --- Q&A Frame ---
+\begin{frame}{Discussion}
+  \centering
+  \vspace{0.8cm}
+  {\Huge \bfseries Q\&A}
+  \vspace{1cm}
+
+  \textcolor{midblue}{Thank you for your attention.} \\
+  \texttt{xxxxxxxxxxxxxxx.org}
+\end{frame}
+
+% --- Ending Frame ---
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[fill=midblue, minimum width=\paperwidth, minimum height=\paperheight] at (current page.center) {};
+    \node[font=\fontsize{40}{70}\selectfont\bfseries, text=white] at (current page.center) {FIN};
+  \end{tikzpicture}
+\end{frame}
+
+\end{document}

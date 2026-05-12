@@ -1,0 +1,149 @@
+% setup.tex
+% Slide configuration (article-based + newpage)
+% Usage: \input{setup.tex} in the main document
+
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath, amssymb, graphicx}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{breqn}      % Auto-break long equations
+
+\hypersetup{colorlinks=true, linkcolor=midblue, urlcolor=midblue}
+
+% Margins
+\geometry{left=2cm, right=2cm, top=2.5cm, bottom=2.5cm}
+
+% Remove page numbers (slides don't need them)
+\pagestyle{empty}
+
+% Color definitions
+\definecolor{midblue}{RGB}{28,70,130}
+\definecolor{myred}{RGB}{150,50,30}
+\definecolor{mygreen}{RGB}{45,125,77}
+\definecolor{myorange}{RGB}{190,88,32}
+
+% Chinese font: Microsoft YaHei (Windows standard)
+\setCJKmainfont{Microsoft YaHei}
+\setCJKsansfont{Microsoft YaHei}
+\setCJKmonofont{Microsoft YaHei}
+
+% English fonts
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
+\setmonofont{Courier New}
+
+% Info box (neutral, informative)
+\newtcolorbox{infobox}[1]{%
+  colback=midblue!5,
+  colframe=midblue!50!black,
+  title=#1,
+  fonttitle=\bfseries,
+  arc=2mm,
+  boxrule=0.5pt
+}
+
+% Alert box (warning / important)
+\newtcolorbox{alertbox}[1]{%
+  colback=myred!5,
+  colframe=myred!50!black,
+  title=#1,
+  fonttitle=\bfseries,
+  arc=2mm,
+  boxrule=0.5pt
+}
+
+% Example box (optional, same as infobox but keeps the orange style)
+\newtcolorbox{examplebox}[1]{%
+  colback=myorange!5,
+  colframe=myorange!50!black,
+  title=#1,
+  fonttitle=\bfseries,
+  arc=2mm,
+  boxrule=0.5pt
+}
+
+% Subsection style with underline
+\newcommand{\subsec}[1]{%
+  \vspace{0.5em}
+  \noindent\textcolor{midblue}{\large\bfseries #1}
+  \vspace{0.3em}
+}
+
+% Cover page command
+\newcommand{\mytitle}[3]{%
+  \begin{center}
+    \vspace*{2cm}
+    {\Huge\bfseries #1}\\[1cm]
+    {\Large #2}\\[0.5cm]
+    {\large #3}
+  \end{center}
+  \newpage
+}
+
+% Q&A page
+\newcommand{\qa}{%
+  \newpage
+  \begin{center}
+    \vspace*{3cm}
+    {\Huge\bfseries Q \& A}
+  \end{center}
+}
+
+% Thanks page
+\newcommand{\thankspage}{%
+  \newpage
+  \begin{center}
+    \vspace*{4cm}
+    {\Large\bfseries Thank You}\\[1cm]
+    {\large Questions are welcome}
+  \end{center}
+}
+
+% Equation auto-break environment (using breqn)
+\newenvironment{slidemath}{%
+  \begin{dmath*}
+}{%
+  \end{dmath*}
+}
+
+% Inline command for long equations (auto-break)
+\newcommand{\longeq}[1]{%
+  \begin{dmath*}
+    #1
+  \end{dmath*}
+}
+
+% ============================================================
+% Two-column: left equation, right explanation
+% Usage: \eqnexplain{formula}{explanation}
+% ============================================================
+\newcommand{\eqnexplain}[2]{%
+  \noindent
+  \begin{minipage}{0.48\textwidth}
+    \begin{dmath*}
+      #1
+    \end{dmath*}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.48\textwidth}
+    #2
+  \end{minipage}
+  \par
+}
+
+
+
+% ============================================================
+% Safe cases environment (auto-break long text inside cases)
+% Usage: \begin{safecases} ... \end{safecases}
+% ============================================================
+\newenvironment{safecases}{%
+  \left\{
+  \begin{array}{@{}l@{\quad}l@{}}%
+}{%
+  \end{array}
+  \right.
+}

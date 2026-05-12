@@ -1,0 +1,145 @@
+% =============================================================================
+% BEAMER THEME CONFIGURATION
+% Last Modified: 2026
+% Description: Professional presentation template with custom TikZ headers,
+%              footers, and auto-scaling components.
+% =============================================================================
+
+\documentclass[aspectratio=169]{beamer}
+
+% -----------------------------------------------------------------------------
+% Core Packages
+% -----------------------------------------------------------------------------
+\usepackage{amsmath, amssymb, xcolor, tikz}
+\usetikzlibrary{calc, backgrounds}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{skins}           % Required for 'enhanced' tcolorbox styles
+\usepackage{xparse}             % Advanced command definitions
+\usepackage{fontspec}           % Font selection for XeLaTeX
+\usepackage{xeCJK}              % Chinese language support
+\usepackage{unicode-math}       % Unicode mathematics support
+\usepackage{etoolbox}           % Logical toggles and patching
+\usepackage{booktabs}           % Professional table horizontal rules
+\usepackage{pgfplots}           % Vector graphics for plots
+\usepackage{adjustbox}          % Content scaling and overflow prevention
+
+\pgfplotsset{compat=1.18}
+
+% -----------------------------------------------------------------------------
+% UI/UX Settings
+% -----------------------------------------------------------------------------
+% Disable standard Beamer navigation symbols for a cleaner interface
+\setbeamertemplate{navigation symbols}{}
+
+% Define Custom Color Palette
+\definecolor{lightblue}{RGB}{70,130,180}
+\definecolor{midblue}{RGB}{28,70,130}
+\definecolor{darkblue}{RGB}{10,40,80}
+\definecolor{myred}{RGB}{150,50,30}
+\definecolor{mygreen}{RGB}{45,125,77}
+\definecolor{mypurple}{RGB}{120,61,137}
+\definecolor{myorange}{RGB}{190,88,32}
+\definecolor{myitem}{RGB}{35,35,35}
+
+% -----------------------------------------------------------------------------
+% Typography Configuration (XeLaTeX)
+% -----------------------------------------------------------------------------
+\newtoggle{fontBlackTheme}
+\newcommand{\UseBlackFont}{\toggletrue{fontBlackTheme}}
+\newcommand{\UseSongFont}{\togglefalse{fontBlackTheme}}
+
+\AtBeginDocument{
+  \iftoggle{fontBlackTheme}{
+    % Sans-serif Theme: Optimized for Microsoft YaHei or SimHei
+    % Fallback to Fandol system fonts if local fonts are missing
+    \setCJKmainfont{SimHei}[AutoFakeBold=true, Fallback=FandolHei-Regular.otf]
+    \setmainfont{Arial}
+  }{
+    % Serif Theme: Optimized for SimSun and Times New Roman
+    \setCJKmainfont{SimSun}[AutoFakeBold=true, Fallback=FandolSong-Regular.otf]
+    \setmainfont{Times New Roman}
+  }
+}
+
+% -----------------------------------------------------------------------------
+% Layout Templates (Header & Footer)
+% -----------------------------------------------------------------------------
+% Custom Headline: Provides vertical padding
+\setbeamertemplate{headline}{\vspace{0.8cm}}
+
+% Custom Frame Title: Renders a TikZ-based header with a divider line
+\setbeamertemplate{frametitle}{
+    \begin{tikzpicture}[remember picture,overlay]
+        \clip (current page.north west) rectangle ([yshift=-1.5cm]current page.north east);
+        \node[anchor=west, font=\normalsize\bfseries, text=black, xshift=0.5cm, yshift=-0.5cm]
+              at (current page.north west){\insertframetitle};
+        \draw[line width=1pt, color=midblue]
+              ([yshift=-0.85cm, xshift=0.3cm]current page.north west) -- ([yshift=-0.85cm, xshift=-0.3cm]current page.north east);
+    \end{tikzpicture}
+}
+
+% Custom Footline: Tricolor block design with project meta-data
+\setbeamertemplate{footline}{%
+  \ifnum\value{framenumber}>0
+    \begin{beamercolorbox}[wd=\paperwidth,ht=0.5cm,dp=0ex]{footline}
+      \begin{tikzpicture}[remember picture,overlay]
+        % Background Blocks
+        \node[fill=lightblue, minimum width=0.3\paperwidth, minimum height=0.5cm, anchor=south west]
+             at (current page.south west) (leftblock) {};
+        \node[fill=midblue, minimum width=0.6\paperwidth, minimum height=0.5cm, anchor=south west]
+             at ([xshift=0.3\paperwidth]current page.south west) (midblock) {};
+        \node[fill=darkblue, minimum width=0.1\paperwidth, minimum height=0.5cm, anchor=south west]
+             at ([xshift=0.9\paperwidth]current page.south west) (rightblock) {};
+
+        % Text Labels
+        \node[anchor=center, font=\tiny, text=white] at (leftblock.center) {PROJECT NAME};
+        \node[anchor=center, font=\tiny, text=white] at (midblock.center) {INTERNAL PRESENTATION 2026};
+        \node[anchor=center, font=\tiny, text=white] at (rightblock.center) {\insertframenumber};
+      \end{tikzpicture}
+    \end{beamercolorbox}
+  \fi
+}
+
+% -----------------------------------------------------------------------------
+% Custom Components & Environments
+% -----------------------------------------------------------------------------
+% Itemize Style: Small circular bullets using TikZ
+\newcommand{\useSmallCircleItem}{%
+  \setbeamertemplate{itemize item}{\raisebox{0.35ex}{\tikz{\draw[myitem, fill=myitem, opacity=0.8] (0,0) circle (1pt);}}}
+  \setbeamertemplate{itemize subitem}{\raisebox{0.35ex}{\tikz{\draw[myitem, fill=myitem, opacity=0.8] (0,0) circle (1pt);}}}
+}
+
+% Equation Highlight Box: Auto-scaling TikZ node with background fill
+\pgfkeys{/BehindEqBox/.is family, /BehindEqBox,
+  color/.initial = midblue, border/.initial = 1pt, padding/.initial = 2.8mm}
+
+\NewDocumentCommand{\BehindEqBox}{O{} m}{%
+  \pgfkeys{/BehindEqBox, #1}
+  \begin{center}
+    \begin{adjustbox}{max width=0.85\textwidth}
+    \begin{tikzpicture}
+      \node[inner sep=\pgfkeysvalueof{/BehindEqBox/padding}] (E) {#2};
+      \begin{scope}[on background layer]
+        \filldraw[fill=\pgfkeysvalueof{/BehindEqBox/color}, fill opacity=0.1, rounded corners=0.15cm,
+                  draw=\pgfkeysvalueof{/BehindEqBox/color}, draw opacity=0.3,
+                  line width=\pgfkeysvalueof{/BehindEqBox/border}]
+          ([xshift=-12pt, yshift=-2pt]E.south west) rectangle ([xshift=12pt, yshift=2pt]E.north east);
+      \end{scope}
+    \end{tikzpicture}
+    \end{adjustbox}
+  \end{center}
+}
+
+% Block Styling: Custom tcolorbox wrappers for standard Beamer blocks
+\newtcolorbox{beamerblockbox}[3][]{%
+  enhanced, colback=#2!10, colframe=#2, coltitle=white, title=#3,
+  fonttitle=\bfseries, arc=1mm, boxrule=0.5pt, left=2mm, right=2mm, top=1mm, bottom=1mm, #1
+}
+\renewenvironment{block}[1]{\begin{beamerblockbox}{midblue}{#1}}{\end{beamerblockbox}}
+\renewenvironment{alertblock}[1]{\begin{beamerblockbox}{myred}{#1}}{\end{beamerblockbox}}
+\renewenvironment{exampleblock}[1]{\begin{beamerblockbox}{myorange}{#1}}{\end{beamerblockbox}}
+
+% Table Scaling: Wrapper to prevent table overflow
+\newcommand{\ThreeLineTable}[1]{%
+  \begin{adjustbox}{max width=\textwidth}{\footnotesize #1}\end{adjustbox}%
+}

@@ -50,7 +50,7 @@ if (-not (Get-Command scoop -ErrorAction SilentlyContinue)){
 # - miktex: The LaTeX engine and package manager.
 # - sumatrapdf: Lightweight PDF viewer (optional but recommended for Windows).
 # - git: Required by some latexmk features and package updates.
-# 避免系统早已安装了 git、aria2、7zip引发环境冲突
+# Avoid environment conflicts caused by pre-installed git, aria2, and 7zip on the system
 $Dependencies = @(
     @{ Cmd = '7z';   Pkg = "7zip" },
     @{ Cmd = "git";  Pkg = "git" },
@@ -76,7 +76,8 @@ foreach ($Item in $Dependencies){
     }
 }
 
-$InstalledBuckets = scoop bucket list --json | ConvertFrom-Json
+$ExportData = scoop bucket export | ConvertFrom-Json
+$InstalledBuckets = $ExportData.buckets.Name
 $RequiredBuckets = @("extras", "versions")
 foreach ($Item in $RequiredBuckets){
     $Exists = $false
@@ -154,7 +155,8 @@ if (!(Get-Command initexmf -ErrorAction SilentlyContinue)){
     # Enable Automatic Package Installation (The "MPM" feature)
     # This allows MiKTeX to download missing .sty files silently during build.
     & initexmf --set-config-value=[MPM]AutoInstall=yes
-
+    & initexmf --set-config-value=[General]AllowUserInteractions=0
+    & initexmf --mkmaps --quiet
 
     Write-Host "Installing latexmk via mpm..." -ForegroundColor Cyan
     if ($Mirror -and -not $env:GITHUB_ACTIONS) {

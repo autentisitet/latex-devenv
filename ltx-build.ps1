@@ -92,7 +92,7 @@ if ($missing.Count -gt 0) {
 # 3. Perform cleanup (based on -Clean switch)
 # ---------------------------------------------------------
 if ($Clean) {
-    Write-Host ">>> Performing forced cleanup (-Clean) ..." -ForegroundColor Cyan
+    Write-Host ">>> Performing deep sanitization (25+ extensions)..." -ForegroundColor Cyan
 
     # Comprehensive list of LaTeX-related auxiliary extensions (25+ types)
     $exts = @(
@@ -126,34 +126,48 @@ if ($Clean) {
 # 4. Core compilation logic
 # ---------------------------------------------------------
 $baseName = [System.IO.Path]::GetFileNameWithoutExtension($Template)
+$targetDir = Split-Path -Path $Template -Parent
+if ([string]::IsNullOrEmpty($targetDir)) { $targetDir = "." }
+$pureName  = Split-Path -Path $Template -Leaf
 
 function Invoke-Compile {
     param([string]$StepName)
     Write-Host "`n>>> $StepName" -ForegroundColor Cyan
 
-    # Perform compilation (interaction=nonstopmode is critical for CI runs)
-    & xelatex -interaction=nonstopmode -halt-on-error $Template
+    if (-not $targetDir) { $targetDir = "." }
+    Push-Location $targetDir
+    try{
+        # Perform compilation (interaction=nonstopmode is critical for CI runs)
+        & xelatex -interaction=nonstopmode -halt-on-error $pureName
 
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "`n[!] Compilation failed, exit code: $LASTEXITCODE" -ForegroundColor Red
-        $log = "$baseName.log"
-        if (Test-Path $log) {
-            Write-Host "--- Error log summary ($log) ---" -ForegroundColor Red
-            Get-Content $log | Select-String -Pattern "!\s+(LaTeX|Package|Class)" | Select-Object -Last 5
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "`n[!] Compilation failed, exit code: $LASTEXITCODE" -ForegroundColor Red
+            $log = "$baseName.log"
+            if (Test-Path $log) {
+                Write-Host "--- Error log summary ($log) ---" -ForegroundColor Red
+                Get-Content $log | Select-String -Pattern "!\s+(LaTeX|Package|Class)" | Select-Object -Last 5
+            }
+            exit 1
         }
-        exit 1
     }
+    finally{
+        Pop-Location
+    }
+
 }
 
 Invoke-Compile -StepName "First pass (generate auxiliary indices)"
 Invoke-Compile -StepName "Second pass (resolve cross-references/TOC)"
 
+
 # ---------------------------------------------------------
 # 5. Result validation
 # ---------------------------------------------------------
-$pdf = "$baseName.pdf"
-if (Test-Path $pdf) {
-    Write-Host "`n[✔] Success: $pdf has been generated!" -ForegroundColor Green
+$pdfPath = Join-Path $targetDir "$baseName.pdf"
+
+if (Test-Path $pdfPath) {
+    Write-Host "`n[✔] Success: $pdfPath has been generated!" -ForegroundColor Green
+    exit 0
 } else {
     Write-Host "`n[✘] Failure: Could not generate PDF file." -ForegroundColor Red
     exit 1

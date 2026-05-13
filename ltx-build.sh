@@ -70,34 +70,42 @@ if [ "$CLEAN" -eq 1 ]; then
     printf "\033[0;32mCleanup completed successfully.\033[0m\n"
 fi
 
+
 # 4. Multi-Pass Compilation State Machine
 # Interaction=nonstopmode is critical for CI to prevent hanging
+TARGET_DIR=$(dirname "$TEMPLATE")
+PURE_FILENAME=$(basename "$TEMPLATE")
+
+pushd "$TARGET_DIR" > /dev/null || exit 1
+
 for pass in 1 2; do
     printf "\n\033[0;36m>>> Pass %d: Compilation in progress...\033[0m\n" "$pass"
 
     # We allow xelatex to stream output to stdout for real-time CI monitoring
     # but use -halt-on-error for immediate failure
-    if ! xelatex -interaction=nonstopmode -halt-on-error "$TEMPLATE"; then
+    if ! xelatex -interaction=nonstopmode -halt-on-error "$PURE_FILENAME"; then
         printf "\033[0;31m\n[!] Fatal: Compilation failed at Pass %d\033[0m\n" "$pass" >&2
+        popd > /dev/null
         exit 1
     fi
 done
+popd > /dev/null
+
 
 # 5. Success Validation
 base_name=$(basename "${TEMPLATE%.tex}")
-pdf="${base_name}.pdf"
+pdf_output="${TARGET_DIR}/${base_name}.pdf"
 
-if [ -f "$pdf" ]; then
-    printf "\n\033[0;32m[✔] Build Success: %s\033[0m\n" "$pdf"
+if [ -f "$pdf_output" ]; then
+    printf "\n\033[0;32m[✔] Build Success: %s\033[0m\n" "$pdf_output"
 
     # Metadata Audit (if pdfinfo is available)
     if command -v pdfinfo >/dev/null 2>&1; then
-        pages=$(pdfinfo "$pdf" | grep -i "Pages:" | awk '{print $2}')
+        pages=$(pdfinfo "$pdf_output" | grep -i "Pages:" | awk '{print $2}')
         printf "\033[0;90m    -> Generated %s page(s)\033[0m\n" "$pages"
     fi
+    exit 0
 else
-    printf "\033[0;31m\n[✘] Error: Build finished but %s was not found.\033[0m\n" "$pdf" >&2
+    printf "\033[0;31m\n[✘] Error: Build finished but %s was not found.\033[0m\n" "$pdf_output" >&2
     exit 1
 fi
-
-exit 0

@@ -1,6 +1,7 @@
 # latex-devenv
 
 [![CI/CD Status](https://github.com/autentisitet/latex-devenv/actions/workflows/build.yml/badge.svg)](https://github.com/autentisitet/latex-devenv/actions)
+[![GitHub release](https://img.shields.io/github/v/release/autentisitet/latex-devenv?include_prereleases)](https://github.com/autentisitet/latex-devenv/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/autentisitet/latex-devenv)
 [![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
@@ -34,7 +35,7 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 > ```powershell
 > Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 > ```
->
+
 > [!WARNING]
 > ### Network Dependency & Mirroring
 > The Windows micro-kernel installer utilizes `MiKTeX JIT`. This drastically reduces initial storage footprint (~200MB), but **requires an active internet connection** during the first compilation of any new template to fetch missing `.sty` packages.
@@ -91,8 +92,8 @@ curl -sSL https://raw.githubusercontent.com/autentisitet/latex-devenv/main/insta
 > [!IMPORTANT]
 > ### 🌐 Mirror Strategy & System Integrity
 > To ensure high-speed downloads in restricted networks without compromising system stability, the suite implements a **Non-Intrusive Mirror Injection** logic. We use **Scoped Injection** instead of permanently overwriting global configurations:
->
-> | Environment | Mirror Source | Injection Mechanism | Restoration / Persistence |
+
+| Environment | Mirror Source | Injection Mechanism | Restoration / Persistence |
 | :--- | :--- | :--- | :--- |
 | **Ubuntu / WSL** | TUNA (Tsinghua) | Temporary `/tmp/tuna_sources.list` via `-o Dir::Etc::SourceList` | **Atomic**: Temporary config is deleted immediately after execution. |
 | **macOS** | TUNA (Tsinghua) | On-the-fly `--repository` flag passed to `tlmgr` | **Stateless**: Global `tlmgr` settings remain untouched. |
@@ -242,5 +243,5 @@ LtxEngine features a robust dual-stack CI/CD pipeline via GitHub Actions. Every 
 * **Author**: [@autentisitet](https://github.com/autentisitet)
 * **Compiler**: XeLaTeX (Primary Engine)
 * **Distribution**: MiKTeX(Windows) / TeX Live(Unix)
-* **Version**: 0.2.0 (pre-release)
+* **Version**: 0.2.1 (pre-release)
 * **License**: [MIT](LICENSE)

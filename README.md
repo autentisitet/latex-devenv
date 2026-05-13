@@ -1,5 +1,10 @@
 # latex-devenv
 
+[![CI/CD Status](https://github.com/autentisitet/latex-devenv/actions/workflows/build.yml/badge.svg)](https://github.com/autentisitet/latex-devenv/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/autentisitet/latex-devenv)
+[![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
+
 **A cross-platform automation suite for on-premises LaTeX workflows.**
 
 This suite optimizes LaTeX environment deployment by abstracting the complexities of multi-gigabyte distributions. It implements an orchestration layer that leverages MiKTeX's dynamic JIT (Just-in-Time) package management for storage-constrained environments and TeX Live's monolithic stability for high-concurrency CI/CD pipelines.
@@ -14,7 +19,7 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 * [🏗 The Enhanced Build Engine](#build-engine)
 * [🎨 Template Gallery](#templates)
 * [📖 Technical Reference](#technical-reference)
-* [🧹 Git Hygiene](#git-hygiene)
+* [🛠 Maintenance & Troubleshooting](#maintenance)
 * [🚀 CI/CD Integration](#cicd)
 * [📄 Metadata & License](#metadata)
 
@@ -22,16 +27,16 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 
 ## ⚠️ Prerequisite & Notices <a id="prerequisites"></a>
 
-> **CAUTION: Execution Policy**
->
+> [!CAUTION]
+> ### Execution Policy
 > `Windows PowerShell` restricts script execution by default. To authorize the local toolchain, execute the following in an Admin session once:
 >
-> ``` Powershell
+> ```powershell
 > Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 > ```
 >
-> **WARNING: Network Dependency & Mirroring**
->
+> [!WARNING]
+> ### Network Dependency & Mirroring
 > The Windows micro-kernel installer utilizes `MiKTeX JIT`. This drastically reduces initial storage footprint (~200MB), but **requires an active internet connection** during the first compilation of any new template to fetch missing `.sty` packages.
 >
 > * **Users in China**: It is highly recommended to use the `-Mirror` flag during installation to route downloads through the TUNA mirror for optimal speed.
@@ -40,15 +45,17 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 
 ## 🔍 Architecture & Design Decisions <a id="architecture-decisions"></a>
 
-* Hybrid Toolchain Orchestration – The suite abstracts distribution-specific differences, implementing MiKTeX JIT logic on Windows for storage efficiency and TeX Live on Unix/WSL for environment consistency.
+* **Hybrid Toolchain Orchestration** – The suite abstracts distribution-specific differences, implementing MiKTeX JIT logic on Windows for storage efficiency and TeX Live on Unix/WSL for environment consistency.
 
-* Deterministic Build Pipeline – Implements an atomic state machine that ensures idempotency. The multi-pass compilation logic guarantees that auxiliary data (`TOC`,  `TikZ`) is correctly synchronized without manual intervention.
+* **Deterministic Build Pipeline** – Implements an idempotent atomic state machine. The multi-pass compilation logic guarantees that auxiliary data (`TOC`, `TikZ`, `Cross-references`) is correctly synchronized without manual intervention.
 
-* Self-Healing Pre-flight Audit – Instead of failing mid-compilation, the engine performs a static analysis of \usepackage declarations, cross-referencing them against the local kpsewhich database to preemptively flag and resolve missing assets.
+* **Self-Healing Pre-flight Audit** – Instead of failing mid-compilation, the engine performs a static analysis of `\usepackage` declarations, cross-referencing them against the local `kpsewhich` database to preemptively flag and resolve missing assets.
 
-* Unified Engine Interface – Standardized on `XeLaTeX` to leverage native UTF-8 handling and system-level font mapping (OpenType/TrueType), eliminating the complexity of legacy TeX font encoding.
+* **Non-Intrusive Mirror Injection** - Implements stateless repository routing. Mirror sources are injected via temporary scoped configurations, accelerating downloads without modifying global system software sources.
 
-* Workspace Decoupling – Implements a strict separation between source logic (`.tex`, `.sty`) and transient metadata (`.aux`, `.log`), enforced via industrial-standard `.gitignore` patterns.
+* **Standardized Engine Interface** – Standardized on `XeLaTeX` to leverage native UTF-8 handling and system-level font mapping (OpenType/TrueType), eliminating "font-not-found" regressions across different OS environments.
+
+* **Deep Workspace Decoupling** – Implements a strict separation between source logic (`.tex`, `.sty`) and transient metadata (`.aux`, `.log`), enforced via industrial-standard `.gitignore` patterns.
 
 **Decision: Single-Engine Architecture**
 By standardizing exclusively on XeLaTeX, the suite eliminates "font-not-found" regressions across different operating systems while providing out-of-the-box UTF-8 support for CJK templates.
@@ -81,12 +88,22 @@ curl -sSL https://raw.githubusercontent.com/autentisitet/latex-devenv/main/insta
 curl -sSL https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.sh | bash -s -- --mirror
 ```
 
+> [!IMPORTANT]
+> ### 🌐 Mirror Strategy & System Integrity
+> To ensure high-speed downloads in restricted networks without compromising system stability, the suite implements a **Non-Intrusive Mirror Injection** logic. We use **Scoped Injection** instead of permanently overwriting global configurations:
+>
+> | Environment | Mirror Source | Injection Mechanism | Restoration / Persistence |
+| :--- | :--- | :--- | :--- |
+| **Ubuntu / WSL** | TUNA (Tsinghua) | Temporary `/tmp/tuna_sources.list` via `-o Dir::Etc::SourceList` | **Atomic**: Temporary config is deleted immediately after execution. |
+| **macOS** | TUNA (Tsinghua) | On-the-fly `--repository` flag passed to `tlmgr` | **Stateless**: Global `tlmgr` settings remain untouched. |
+| **Arch Linux** | TUNA (Tsinghua) | Prioritized entry in a temporary `pacman.conf` | **Clean**: The original `mirrorlist` is never modified. |
+
 **Repository Integration (Development)**
 Recommended for full access to internal build engines and template structures.
 
 * Windows (PowerShell):
 
-```Powershell
+```powershell
 git clone https://github.com/autentisitet/latex-devenv.git
 cd latex-devenv
 powershell -ExecutionPolicy Bypass -File .\installer.ps1
@@ -97,7 +114,7 @@ powershell -ExecutionPolicy Bypass -File .\installer.ps1
 ```Bash
 git clone https://github.com/autentisitet/latex-devenv.git
 cd latex-devenv
-chmod +x *.sh
+chmod +x installer.sh
 ./installer.sh
 ```
 
@@ -108,13 +125,14 @@ The build engine provides a standardized interface for both PowerShell and Bash.
 * Windows
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\ltx-build.ps1 -Template "./template/lab-report_template/main.tex" -Clean
+powershell -ExecutionPolicy Bypass -File .\ltx-build.ps1 -Template ".\template\lab-report_template\main.tex" -Clean
 ```
 
 * Linux / macOS / WSL
 
 ```bash
-chmod +x ltx-build.sh && ./ltx-build.sh "./template/lab-report_template/main.tex" -c
+chmod +x ltx-build.sh
+./ltx-build.sh "./template/lab-report_template/main.tex" --clean
 ```
 
 ---
@@ -130,6 +148,23 @@ chmod +x ltx-build.sh && ./ltx-build.sh "./template/lab-report_template/main.tex
 | **Entry Point** | `-Template` or `Pos 0` | `$1` | Defines the entry point (Defaults to `main.tex`) |
 | **Cleanup** | `-Clean` or `-c` | `-c` or `--clean` | Purges 20+ transient auxiliary extensions before building |
 | **-Help** | `-Help` or `-h`or`-?` | `--help` or `-h` | Displays the help documentation |
+
+**Intelligent Workspace Sanitization:**
+
+The --clean flag triggers a deep-clean state machine that purges 25+ types of transient LaTeX debris, ensuring a deterministic "pristine" state for every build. Targeted assets include:
+
+* **Core Metadata:** `.aux,` `.log`, `.out`, `.toc`, `.fls`, `.fdb_latexmk`, `.synctex.gz`
+
+* **Bibliographies:** `.bbl`, `.blg`, `.bcf`, `.run.xml` (BibTeX/Biber support)
+
+* **Interactive Elements:** `.nav`, `.snm`, `.vrb` (Full Beamer support)
+
+* **Indexing & Lists:** `.idx`, `.ind`, `.ilg`, `.lof`, `.lot`, `.maf`, `.mtc*`
+
+* **Dynamic Graphics & Logic:** `.tikz`, `.pgf`, `.pyg` (Minted cache), `.thm`
+>
+> [!TIP]
+> **Why deep clean?** LaTeX auxiliary files can sometimes become "stale" (e.g., after changing section titles or moving files), leading to persistent compilation errors. The --clean flag eliminates these ghost regressions.
 
 ---
 
@@ -158,17 +193,11 @@ This suite prioritizes **XeLaTeX** for modern Unicode (UTF-8) handling and syste
 
 ---
 
-## 🧹 Git Hygiene <a id="git-hygiene"></a>
+## 🛠 Maintenance & Troubleshooting <a id="maintenance"></a>
 
-This repository enforces a strict "Source-Only" policy. Transient "build debris" is filtered via `.gitignore`.
+### Workspace Hygiene
 
-* **Auxiliary Data**: `.aux`, `.fdb_latexmk`, `.fls`, `.synctex.gz` (Metadata).
-
-* **Beamer State**: `.nav`, `.snm`, `.vrb` (Slide-specific artifacts).
-
-* **Log Files**: `.log`, `.blg`, `.ilg` (Forensic diagnostics).
-
-### Maintenance Commands
+The suite utilizes a strict `.gitignore` to filter out 20+ types of transient LaTeX debris. To keep your repository pristine:
 
 #### 1. To purge existing tracked debris (Safety First)
 
@@ -189,6 +218,9 @@ To physically delete all files listed in `.gitignore` and restore a "pristine" s
 git clean -fdX
 ```
 
+> [!TIP]
+> Regularly running git clean -fdX is recommended before major CI/CD deployments to ensure no stale auxiliary data interferes with the build engine.
+
 ---
 
 ## 🚀 CI/CD Integration <a id="cicd"></a>
@@ -197,11 +229,11 @@ LtxEngine features a robust dual-stack CI/CD pipeline via GitHub Actions. Every 
 
 **Key Infrastructure Features:**
 
-* Multi-Platform Audit: Validates installer.sh on Linux (TeX Live) and installer.ps1 on Windows (MiKTeX) simultaneously.
+* **Multi-Platform Audit:** Validates installer.sh on Linux (TeX Live) and installer.ps1 on Windows (MiKTeX) simultaneously.
 
-* Intelligent Caching: Implements multi-layer caching for TeX Live packages and MiKTeX JIT data.
+* **Intelligent Caching:** Implements multi-layer caching for TeX Live packages and MiKTeX JIT data.
 
-* Automated Release: When a version tag (e.g., v1.0.0) is pushed, the engine automatically aggregates compiled PDFs from all platforms and creates a GitHub Release.
+* **Automated Release:** When a version tag (e.g., v1.0.0) is pushed, the engine automatically aggregates compiled PDFs from all platforms and creates a GitHub Release.
 
 ---
 
@@ -210,5 +242,5 @@ LtxEngine features a robust dual-stack CI/CD pipeline via GitHub Actions. Every 
 * **Author**: [@autentisitet](https://github.com/autentisitet)
 * **Compiler**: XeLaTeX (Primary Engine)
 * **Distribution**: MiKTeX(Windows) / TeX Live(Unix)
-* **Version**: 0.1.0 (pre-release)
+* **Version**: 0.2.0 (pre-release)
 * **License**: [MIT](LICENSE)

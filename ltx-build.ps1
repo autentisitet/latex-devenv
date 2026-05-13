@@ -93,10 +93,33 @@ if ($missing.Count -gt 0) {
 # ---------------------------------------------------------
 if ($Clean) {
     Write-Host ">>> Performing forced cleanup (-Clean) ..." -ForegroundColor Cyan
-    # Clean up junk files in current directory and subdirectories
-    $exts = @("*.aux", "*.nav", "*.snm", "*.toc", "*.out", "*.log", "*.fls", "*.fdb_latexmk", "*.synctex.gz")
-    Get-ChildItem -Path "." -Include $exts -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
-    Write-Host "Cleanup completed." -ForegroundColor Green
+
+    # Comprehensive list of LaTeX-related auxiliary extensions (25+ types)
+    $exts = @(
+        # Standard Core Metadata
+        "*.aux", "*.log", "*.out", "*.toc", "*.fls", "*.fdb_latexmk", "*.synctex.gz",
+
+        # Bibliography & Citations (BibTeX/Biber)
+        "*.bbl", "*.blg", "*.bcf", "*.run.xml", "*.bib.bak", "*.sav",
+
+        # Beamer Slides & Interactive Components
+        "*.nav", "*.snm", "*.vrb", "*.pre",
+
+        # Lists, Indexing & Glossary
+        "*.lof", "*.lot", "*.idx", "*.ind", "*.ilg", "*.maf", "*.mtc*", "*.nlo", "*.nls",
+
+        # Advanced Package Artifacts (minted, tcolorbox, etc.)
+        "*.pyg", "*.thm", "*.atfi", "*.upa", "*.upb"
+    )
+
+    $targets = Get-ChildItem -Path "." -Include $exts -Recurse -File -ErrorAction SilentlyContinue
+
+    if ($targets.Count -gt 0) {
+        $targets | Remove-Item -Force
+        Write-Host "Done! Purged $($targets.Count) auxiliary files across 25+ categories." -ForegroundColor Green
+    } else {
+        Write-Host "Workspace is already pristine. No debris found." -ForegroundColor Gray
+    }
 }
 
 # ---------------------------------------------------------

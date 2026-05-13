@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ltx-build.sh - High-Performance LaTeX Build Engine (Linux/macOS)
 # Optimized for LaTeX template repositories and CI/CD pipelines.
@@ -16,7 +16,7 @@ show_help() {
 
 # Parse Arguments
 while [[ "$#" -gt 0 ]]; do
-    case $1 in
+    case "$1" in
         -c|--clean) CLEAN=1; shift ;;
         -h|--help)  show_help ;;
         -*)
@@ -49,13 +49,25 @@ if command -v kpsewhich >/dev/null 2>&1; then
 fi
 
 # 3. Atomic Clean
-if [ $CLEAN -eq 1 ]; then
-    printf "\033[0;36m>>> Purging auxiliary debris...\033[0m\n"
-    # Using find to prevent "argument list too long" in massive projects
-    find . -maxdepth 2 -name "*.aux" -o -name "*.log" -o -name "*.nav" -o -name "*.out" \
-                       -o -name "*.snm" -o -name "*.toc" -o -name "*.fls" \
-                       -o -name "*.fdb_latexmk" -o -name "*.synctex.gz" | xargs rm -f 2>/dev/null
-    printf "\033[0;32mCleaned.\033[0m\n"
+if [ "$CLEAN" -eq 1 ]; then
+    printf "\033[0;36m>>> Performing deep sanitization (25+ extensions)...\033[0m\n"
+
+    # Define all extensions in a regex-friendly format
+    # This covers: Core, Bib, Beamer, Indexing, and Package-specific debris
+    EXT_PATTERN="aux|log|out|toc|fls|fdb_latexmk|synctex\.gz|bbl|blg|bcf|run\.xml|bib\.bak|sav|nav|snm|vrb|pre|lof|lot|idx|ind|ilg|maf|mtc.*|nlo|nls|pyg|thm|atfi|upa|upb"
+
+    # Optimization: Use -E (Extended Regex) for cleaner syntax
+    # -type f: Only files, avoid touching directories
+    # -maxdepth 3: Balanced depth to clean sub-folders without scanning the entire disk
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS (BSD find)
+        find -E . -maxdepth 3 -type f -regex ".*\.($EXT_PATTERN)" -exec rm -f {} +
+    else
+        # Linux (GNU find)
+        find . -maxdepth 3 -type f -regextype posix-extended -regex ".*\.($EXT_PATTERN)" -delete
+    fi
+
+    printf "\033[0;32mCleanup completed successfully.\033[0m\n"
 fi
 
 # 4. Multi-Pass Compilation State Machine

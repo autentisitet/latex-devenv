@@ -11,6 +11,8 @@
 **/*.fls
 **/*.synctex.gz
 **/*.pdfsync
+**/*-blx.bib
+**/*.bcf
 
 # --- Bibliography cache files ---
 **/*.bib.bak
@@ -37,8 +39,6 @@
 # --- Automation build tool intermediates (latexmk, tikz, etc.) ---
 **/missing.lst
 **/*.run.xml
-**/*-blx.bib
-**/*.bcf
 **/*.xdv
 
 # --- Final artifacts (optional) ---

@@ -3,7 +3,7 @@
     LaTeX Core Setup for Windows (Scoop + MiKTeX).
 
 .DESCRIPTION
-    Installs MiKTeX, SumatraPDF, and Git via Scoop. Configures automatic package installation.
+    Installs MiKTeX, SumatraPDF. Configures automatic package installation.
 
 .PARAMETER Mirror
     Use TUNA (Tsinghua University) mirror for faster downloads in China.
@@ -50,31 +50,133 @@ if (-not (Get-Command scoop -ErrorAction SilentlyContinue)){
 # - miktex: The LaTeX engine and package manager.
 # - sumatrapdf: Lightweight PDF viewer (optional but recommended for Windows).
 # - git: Required by some latexmk features and package updates.
-scoop bucket add extras version
-scoop install miktex sumatrapdf git
+# 避免系统早已安装了 git、aria2、7zip引发环境冲突
+$Dependencies = @(
+    @{ Cmd = '7z';   Pkg = "7zip" },
+    @{ Cmd = "git";  Pkg = "git" },
+    @{ Cmd = "aria2c";  Pkg = "aria2" }
+)
+
+foreach ($Item in $Dependencies){
+    $Command = $Item.Cmd
+    $Package = $Item.Pkg
+    if (-not (Get-Command $Command -ErrorAction SilentlyContinue)){
+        Write-Host "$($Package) is not installed. It will be installed by scoop." -ForegroundColor Gray
+        try{
+            scoop install $Package
+        }
+        catch{
+            Write-Error "The $($Package) installation failed. `
+                    Please check your computer environment."
+            throw
+        }
+    }
+    else{
+        Write-Host "[√] $($Package) has been installed already." -ForegroundColor Green
+    }
+}
+
+$InstalledBuckets = scoop bucket list --json | ConvertFrom-Json
+$RequiredBuckets = @("extras", "versions")
+foreach ($Item in $RequiredBuckets){
+    $Exists = $false
+    foreach ($Installed in $InstalledBuckets){
+        if ($Item -eq $Installed.Name){
+            $Exists = $true
+            break
+        }
+    }
+    if (-not $Exists){
+        Write-Host "The scoop $($Item) bucket hasn't been added."
+        try{
+            scoop bucket add $Item
+            Write-Host "The $($Item) bucket has been added."
+        }
+        catch{
+            Write-Error "The $($Item) bucket add in failure."
+            throw
+        }
+    }
+    else{
+        Write-Host "The scoop $($Item) bucket already exists."
+    }
+}
+
+
+
+$LtxEngine = @(
+    @{ Cmd = 'miktex';  Pkg = 'miktex' },
+    @{ Cmd = 'SumatraPDF';  Pkg = 'sumatrapdf' }
+)
+foreach ($Item in $LtxEngine){
+    $Command = $Item.Cmd
+    $Package = $Item.Pkg
+    if (-not (Get-Command $Command -ErrorAction SilentlyContinue)){
+        Write-Host "$($Package) is not installed. It will be installed by scoop." -ForegroundColor Gray
+        try{
+            scoop install $Package
+        }
+        catch{
+            Write-Error "The $($Package) installation failed."
+            throw
+        }
+    }
+    else{
+        Write-Host "[√] $($Package) has been installed already." -ForegroundColor Green
+    }
+}
 
 # 4. MiKTeX Initialization (Crucial: Run finish to finalize the installation)
-Write-Host "Initializing MiKTeX core..." -ForegroundColor Cyan
-miktexsetup finish --verbose
+# In CI environments, newly installed apps might not be in PATH immediately.
+# Inject the MiKTeX bin path directly into the session.
+Write-Host "Checking MiKTeX core environment..." -ForegroundColor Cyan
+$RequiredPaths = @(
+    "$env:USERPROFILE\scoop\shims",
+    "$env:USERPROFILE\scoop\apps\miktex\current\miktex\bin\x64"
+)
+foreach ($Item in $RequiredPaths){
+    if ((Test-Path $Item) -and ($env:PATH -notlike "*$Item*")){
+        $env:PATH = "$Item;$env:PATH"
+        Write-Host "Added to PATH: $($Item)" -ForegroundColor Gray
+    }
+    else{
+        Write-Host "[√] Already in PATH: $($Item)" -ForegroundColor Gray
+    }
+}
 
-# Enable Automatic Package Installation (The "MPM" feature)
-# This allows MiKTeX to download missing .sty files silently during build.
-initexmf --set-config-value=[MPM]AutoInstall=yes
+
 
 # 5. Build Tool Installation
-# Installing latexmk via MiKTeX's package manager to ensure engine compatibility.
-Write-Host "Installing latexmk via mpm..." -ForegroundColor Cyan
-if ($Mirror -and -not $env:GITHUB_ACTIONS) {
-    Write-Host "Mirror flag detected. Switching MiKTeX to TUNA mirror..." -ForegroundColor Green
-    mpm --set-repository=https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/win32/miktex/tm/packages/
-}
-mpm --install=latexmk
+    # Installing latexmk via MiKTeX's package manager to ensure engine compatibility.
+if (!(Get-Command initexmf -ErrorAction SilentlyContinue)){
+    Write-Host "MiKTeX core not detected in PATH. Initializing..." -ForegroundColor Yellow
+    & miktexsetup finish --verbose
+    # Enable Automatic Package Installation (The "MPM" feature)
+    # This allows MiKTeX to download missing .sty files silently during build.
+    & initexmf --set-config-value=[MPM]AutoInstall=yes
 
-# Refresh Environment Variables
-# Ensures that newly installed tools are available in the current session PATH.
-$env:PATH = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+    Write-Host "Installing latexmk via mpm..." -ForegroundColor Cyan
+    if ($Mirror -and -not $env:GITHUB_ACTIONS) {
+        Write-Host "Mirror flag detected. Switching MiKTeX to TUNA mirror..." -ForegroundColor Green
+        & mpm --set-repository=https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/win32/miktex/tm/packages/
+    }
+    & mpm --install=latexmk
+}
+else{
+    Write-Host "[√] MiKTeX core is already initialized."
+}
+
+
+
 
 # 6. Verification
 Write-Host "Verifying installation..." -ForegroundColor Cyan
-latexmk -v
-Write-Host "MiKTeX setup completed successfully! Packages will auto-install on first use." -ForegroundColor Green
+if (Get-Command latexmk -ErrorAction SilentlyContinue) {
+    & latexmk.Source -v
+    Write-Host "MiKTeX setup completed successfully! Packages will auto-install on first use." -ForegroundColor Green
+}
+else {
+    Write-Warning "MiKTeX initialized, but 'latexmk' is not accessible in this process."
+    Write-Warning "Please try: 1. Restart Terminal  2. Run 'scoop install miktex' again if missing."
+}

@@ -45,21 +45,66 @@
 % Typography Configuration (XeLaTeX)
 % -----------------------------------------------------------------------------
 \newtoggle{fontBlackTheme}
+\AtBeginDocument{
+  \iftoggle{fontBlackTheme}{
+    % ========== 黑体主题 ==========
+    \IfFontExistsTF{Microsoft YaHei}{
+        % Windows
+        \setCJKmainfont{Microsoft YaHei}
+        \setCJKsansfont{Microsoft YaHei}
+        \setCJKmonofont{Microsoft YaHei}
+    }{
+        \IfFontExistsTF{STHeiti-SC}{
+            % macOS
+            \setCJKmainfont{STHeiti-SC}
+            \setCJKsansfont{STHeiti-SC}
+            \setCJKmonofont{STHeiti-SC}
+        }{
+            \IfFontExistsTF{Noto Sans CJK SC}{
+                % Linux / CI
+                \setCJKmainfont{Noto Sans CJK SC}[AutoFakeBold=true]
+                \setCJKsansfont{Noto Sans CJK SC}[AutoFakeBold=true]
+                \setCJKmonofont{Noto Sans CJK SC}
+            }{
+                \IfFontExistsTF{FandolHei}{
+                    % Linux fallback
+                    \setCJKmainfont{FandolHei}[AutoFakeBold=true]
+                    \setCJKsansfont{FandolHei}[AutoFakeBold=true]
+                    \setCJKmonofont{FandolHei}
+                }
+            }
+        }
+    }
+  }{
+    % ========== 宋体主题 ==========
+    \IfFontExistsTF{SimSun}{
+        % Windows
+        \setCJKmainfont{SimSun}[AutoFakeBold=true]
+        \setCJKsansfont{SimSun}[AutoFakeBold=true]
+    }{
+        \IfFontExistsTF{STSongti-SC}{
+            % macOS
+            \setCJKmainfont{STSongti-SC}[AutoFakeBold=true]
+            \setCJKsansfont{STHeiti-SC}[AutoFakeBold=true]
+        }{
+            \IfFontExistsTF{Noto Serif CJK SC}{
+                % Linux / CI
+                \setCJKmainfont{Noto Serif CJK SC}[AutoFakeBold=true]
+                \setCJKsansfont{Noto Sans CJK SC}[AutoFakeBold=true]
+            }{
+                \IfFontExistsTF{FandolSong}{
+                    % Linux fallback
+                    \setCJKmainfont{FandolSong}[AutoFakeBold=true]
+                    \setCJKsansfont{FandolSong}[AutoFakeBold=true]
+                }
+            }
+        }
+    }
+  }
+}
 \newcommand{\UseBlackFont}{\toggletrue{fontBlackTheme}}
 \newcommand{\UseSongFont}{\togglefalse{fontBlackTheme}}
 
-\AtBeginDocument{
-  \iftoggle{fontBlackTheme}{
-    % Sans-serif Theme: Optimized for Microsoft YaHei or SimHei
-    % Fallback to Fandol system fonts if local fonts are missing
-    \setCJKmainfont{SimHei}[AutoFakeBold=true, Fallback=FandolHei-Regular.otf]
-    \setmainfont{Arial}
-  }{
-    % Serif Theme: Optimized for SimSun and Times New Roman
-    \setCJKmainfont{SimSun}[AutoFakeBold=true, Fallback=FandolSong-Regular.otf]
-    \setmainfont{Times New Roman}
-  }
-}
 
 % -----------------------------------------------------------------------------
 % Layout Templates (Header & Footer)
@@ -107,27 +152,6 @@
 \newcommand{\useSmallCircleItem}{%
   \setbeamertemplate{itemize item}{\raisebox{0.35ex}{\tikz{\draw[myitem, fill=myitem, opacity=0.8] (0,0) circle (1pt);}}}
   \setbeamertemplate{itemize subitem}{\raisebox{0.35ex}{\tikz{\draw[myitem, fill=myitem, opacity=0.8] (0,0) circle (1pt);}}}
-}
-
-% Equation Highlight Box: Auto-scaling TikZ node with background fill
-\pgfkeys{/BehindEqBox/.is family, /BehindEqBox,
-  color/.initial = midblue, border/.initial = 1pt, padding/.initial = 2.8mm}
-
-\NewDocumentCommand{\BehindEqBox}{O{} m}{%
-  \pgfkeys{/BehindEqBox, #1}
-  \begin{center}
-    \begin{adjustbox}{max width=0.85\textwidth}
-    \begin{tikzpicture}
-      \node[inner sep=\pgfkeysvalueof{/BehindEqBox/padding}] (E) {#2};
-      \begin{scope}[on background layer]
-        \filldraw[fill=\pgfkeysvalueof{/BehindEqBox/color}, fill opacity=0.1, rounded corners=0.15cm,
-                  draw=\pgfkeysvalueof{/BehindEqBox/color}, draw opacity=0.3,
-                  line width=\pgfkeysvalueof{/BehindEqBox/border}]
-          ([xshift=-12pt, yshift=-2pt]E.south west) rectangle ([xshift=12pt, yshift=2pt]E.north east);
-      \end{scope}
-    \end{tikzpicture}
-    \end{adjustbox}
-  \end{center}
 }
 
 % Block Styling: Custom tcolorbox wrappers for standard Beamer blocks

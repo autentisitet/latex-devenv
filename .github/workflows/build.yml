@@ -17,9 +17,9 @@ env:
 
 jobs:
   # ------------------------------------------
-  # --- Task 1: Linux Compilation and Script Auditing ---
+  # --- Task 1: Ubuntu Compilation and Script Auditing ---
   # ------------------------------------------
-  build-linux:
+  build-ubuntu:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -35,7 +35,7 @@ jobs:
             ${{ runner.os }}-texlive-
 
 
-      - name: Setup LaTeX Environment (Linux)
+      - name: Setup LaTeX Environment (Ubuntu)
         run: |
           chmod +x ./installer.sh
           ./installer.sh
@@ -57,10 +57,10 @@ jobs:
           done
 
 
-      - name: Archive Linux Artifacts
+      - name: Archive Ubuntu Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pdf-assets-linux
+          name: pdf-assets-ubuntu
           path: "**/*.pdf"
           if-no-files-found: error
 
@@ -104,7 +104,7 @@ jobs:
           if (!(Test-Path "$env:USERPROFILE\scoop")) {
               irm get.scoop.sh | iex
           }
-              $env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\scoop\current\bin;" + $env:PATH
+          $env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\scoop\current\bin;" + $env:PATH
           .\installer.ps1
 
 
@@ -133,12 +133,96 @@ jobs:
 
 
 
+  # ------------------------------------------
+  # --- Task 3: macOS Compilation and Script Auditing ---
+  # ------------------------------------------
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup LaTeX Environment (macOS)
+        run: |
+          chmod +x ./installer.sh
+          ./installer.sh
+
+      - name: Execute Build Engine (.sh)
+        run: |
+          chmod +x ./ltx-build.sh
+          declare -a templates=(
+            "template/lab-report-template/main.tex"
+            "template/paper-slides-template/main.tex"
+            "template/ppt-template/main.tex"
+          )
+
+          for template in "${templates[@]}"; do
+            echo "::group::Building $template"
+            ./ltx-build.sh "$template" --clean
+            echo "::endgroup::"
+          done
+
+      - name: Archive macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-assets-macos
+          path: "**/*.pdf"
+          if-no-files-found: error
+
+
 
   # ------------------------------------------
-  # --- Task 3: Automated Delivery (GitHub Release) ---
+  # --- Task 4: Arch Linux Compilation and Script Auditing ---
+  # ------------------------------------------
+  build-arch:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      - name: Install base tools
+        run: |
+          pacman -Syu --noconfirm git base-devel
+
+
+      - name: Setup LaTeX Environment (Arch)
+        run: |
+          pacman -Syu --noconfirm
+          chmod +x ./installer.sh
+          ./installer.sh
+
+
+      - name: Execute Build Engine (.sh)
+        run: |
+          chmod +x ./ltx-build.sh
+          declare -a templates=(
+            "template/lab-report-template/main.tex"
+            "template/paper-slides-template/main.tex"
+            "template/ppt-template/main.tex"
+          )
+
+          for template in "${templates[@]}"; do
+            echo "::group::Building $template"
+            ./ltx-build.sh "$template" --clean
+            echo "::endgroup::"
+          done
+
+
+      - name: Archive Arch Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-assets-arch
+          path: "**/*.pdf"
+          if-no-files-found: error
+
+
+  # ------------------------------------------
+  # --- Task 5: Automated Delivery (GitHub Release) ---
   # ------------------------------------------
   release:
-    needs: [build-linux, build-windows]
+    needs: [build-ubuntu, build-windows, build-macos, build-arch]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -174,7 +258,7 @@ jobs:
           body: |
             ## 📄 Compiled LaTeX Documents
 
-            This release contains PDFs built across Linux and Windows environments.
+            This release contains PDFs built across Ubuntu, Windows, macOS and Arch environments.
           files: "release-assets/*.pdf"
           generate_release_notes: true
           fail_on_unmatched_files: true

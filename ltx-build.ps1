@@ -16,7 +16,7 @@
     Show this help message.
 
 .EXAMPLE
-    .\ltx-build.ps1 -Template ".\template\lab-report_template\main.tex" -Clean
+    .\ltx-build.ps1 -Template ".\template\lab-report-template\main.tex" -Clean
 #>
 
 param(

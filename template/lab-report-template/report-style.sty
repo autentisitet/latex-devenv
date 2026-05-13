@@ -5,7 +5,33 @@
 \ProvidesPackage{report-style}[2026/05/11 v1.0 Lab Report Style]
 
 % ---------- Dependency Packages ----------
-\RequirePackage{ctex}
+\RequirePackage[fontset=none]{ctex}
+% Windows: 使用微软雅黑（通过字体名称检测）
+\IfFontExistsTF{Microsoft YaHei}{
+    \setCJKmainfont{Microsoft YaHei}
+    \setCJKsansfont{Microsoft YaHei}
+    \setCJKmonofont{Microsoft YaHei}
+}{
+    % 非 Windows 环境
+    \IfFontExistsTF{STSongti-SC}{
+        % macOS: 使用系统字体
+        \setCJKmainfont{STSongti-SC}
+        \setCJKsansfont{STHeiti-SC}
+        \setCJKmonofont{STHeiti-SC}
+    }{
+        \IfFontExistsTF{Noto Serif CJK SC}{
+            % Linux/其他: 使用 Noto 字体
+            \setCJKmainfont{Noto Serif CJK SC}[AutoFakeBold=true]
+            \setCJKsansfont{Noto Sans CJK SC}[AutoFakeBold=true]
+            \setCJKmonofont{Noto Sans CJK SC}
+        }{
+            % 最终 fallback: 使用 SimSun
+            \setCJKmainfont{SimSun}[AutoFakeBold=true]
+            \setCJKsansfont{SimSun}[AutoFakeBold=true]
+            \setCJKmonofont{SimSun}
+        }
+    }
+}
 \RequirePackage{geometry}
 \RequirePackage{setspace}
 \RequirePackage{array}

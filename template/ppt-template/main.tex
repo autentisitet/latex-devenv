@@ -10,7 +10,7 @@
 % Replace these with your actual details
 \newcommand{\mytitle}{Investigation of [Your Subject] Using [Your Method]}
 \newcommand{\myauthor}{xxxxxxxxxxxxxxxx}
-\newcommand{\myinstitute}{xxxxxxxxxxxx \\ ############}
+\newcommand{\myinstitute}{xxxxxxxxxxxx \\ xxxxxxxxxxxxxxxxx}
 
 \begin{frame}[plain]
   \begin{tikzpicture}[remember picture, overlay]
@@ -43,14 +43,13 @@
 \begin{frame}{Performance Assessment Metrics}
   \textbf{Global Efficiency Score}: The following metric accounts for both modular performance and stochastic environmental variance.
 
-  \BehindEqBox{
-    $\displaystyle
-    S = \underbrace{\sum_{i=1}^{N} \textcolor{myorange}{\omega_i}\, \textcolor{mygreen}{\sigma_i}}_{\text{Weighted Modular Score}} \;+\;
-    \overbrace{\left( {\frac{1}{N} \sum_{j=1}^{M} \textcolor{myred}{\delta_j} \cdot \prod_{k=1}^{K} \phi(x_k)} \right)}^{\text{Environmental Correction Factor}}
-    $
-  }
+  \[
+    \boxed{
+      S = \underbrace{\sum_{i=1}^{N} \textcolor{myorange}{\omega_i}\, \textcolor{mygreen}{\sigma_i}}_{\text{Weighted Modular Score}} \;+\;
+      \overbrace{\left( {\frac{1}{N} \sum_{j=1}^{M} \textcolor{myred}{\delta_j} \cdot \prod_{k=1}^{K} \phi(x_k)} \right)}^{\text{Environmental Correction Factor}}
+    }
+  \]
 
-  \begin{adjustbox}{max width=\textwidth}
   \[
     \left\{
     \begin{aligned}
@@ -60,10 +59,9 @@
     \end{aligned}
     \right.
   \]
-  \end{adjustbox}
 
   \vspace{0.5em}
-  \small \textbf{Note:} The correction factor is auto-scaled using \texttt{adjustbox} to maintain legibility regardless of term length.
+  \small \textbf{Note:} The correction factor is auto-scaled to maintain legibility regardless of term length.
 \end{frame}
 
 % --- Block Emphasis Page ---

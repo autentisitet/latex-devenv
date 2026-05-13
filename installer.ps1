@@ -84,7 +84,7 @@ foreach ($Bucket in $RequiredBuckets) {
     if ($LASTEXITCODE -eq 0) {
         Write-Host "[✓] Bucket '$Bucket' ready" -ForegroundColor Green
     } else {
-        # 只有真正失败时才显示错误
+        # Errors are only displayed when a true failure occurs.
         if ($result -notlike "*already exists*") {
             Write-Host "[!] Failed to add bucket '$Bucket': $result" -ForegroundColor Yellow
         }
@@ -163,7 +163,7 @@ else{
 # 6. Verification
 Write-Host "Verifying installation..." -ForegroundColor Cyan
 if (Get-Command latexmk -ErrorAction SilentlyContinue) {
-    & latexmk.Source -v
+    & latexmk -v
     Write-Host "MiKTeX setup completed successfully! Packages will auto-install on first use." -ForegroundColor Green
 }
 else {

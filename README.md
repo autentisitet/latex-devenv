@@ -126,14 +126,14 @@ The build engine provides a standardized interface for both PowerShell and Bash.
 * Windows
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\ltx-build.ps1 -Template ".\template\lab-report_template\main.tex" -Clean
+powershell -ExecutionPolicy Bypass -File .\ltx-build.ps1 -Template ".\template\lab-report-template\main.tex" -Clean
 ```
 
 * Linux / macOS / WSL
 
 ```bash
 chmod +x ltx-build.sh
-./ltx-build.sh "./template/lab-report_template/main.tex" --clean
+./ltx-build.sh "./template/lab-report-template/main.tex" --clean
 ```
 
 ---
@@ -243,5 +243,5 @@ LtxEngine features a robust dual-stack CI/CD pipeline via GitHub Actions. Every 
 * **Author**: [@autentisitet](https://github.com/autentisitet)
 * **Compiler**: XeLaTeX (Primary Engine)
 * **Distribution**: MiKTeX(Windows) / TeX Live(Unix)
-* **Version**: 0.2.1 (pre-release)
+* **Version**: 0.3.0 (pre-release)
 * **License**: [MIT](LICENSE)

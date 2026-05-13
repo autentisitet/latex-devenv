@@ -36,6 +36,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+
+if [ "$(id -u)" -eq 0 ]; then
+    export LTX_SUDO=""
+else
+    if command -v sudo &> /dev/null; then
+        export LTX_SUDO="sudo"
+    else
+        echo -e "\033[1;33mWarning: Not root and 'sudo' not found. Trying without it...\033[0m"
+        export LTX_SUDO=""
+    fi
+fi
+
+
 # Output styling
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -45,6 +58,19 @@ echo -e "${BLUE}==> Starting LaTeX Core Setup (TeX Live Based)${NC}"
 
 if command -v apt-get &> /dev/null; then
     echo "Processing for Debian/Ubuntu/WSL..."
+    UBUNTU_LATEX_PACKAGES=(
+        texlive-latex-recommended
+        texlive-latex-extra
+        texlive-xetex
+        texlive-lang-chinese
+        texlive-fonts-recommended
+        texlive-fonts-extra
+        texlive-science
+        fonts-noto-cjk
+        fonts-noto-cjk-extra
+        latexmk
+        hunspell
+    )
 
     # Fallback for lsb_release missing in slim images
     if command -v lsb_release &> /dev/null; then
@@ -62,76 +88,102 @@ deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $CODENAME-updates main restrict
 deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $CODENAME-security main restricted universe multiverse
 EOF
         APT_OPT="-o Dir::Etc::SourceList=$TEMP_SOURCES -o Dir::Etc::SourceParts=/dev/null"
-        sudo apt-get update $APT_OPT -qq
-        sudo apt-get install -y $APT_OPT \
-            texlive-latex-recommended \
-            texlive-latex-extra \
-            texlive-xetex \
-            texlive-lang-chinese \
-            texlive-fonts-recommended \
-            latexmk
+        ${LTX_SUDO} apt-get update $APT_OPT -qq
+        ${LTX_SUDO} apt-get install -y $APT_OPT "${UBUNTU_LATEX_PACKAGES[@]}"
         rm -f "$TEMP_SOURCES"
     else
-        sudo apt-get update -qq
-        sudo apt-get install -y \
-            texlive-latex-recommended \
-            texlive-latex-extra \
-            texlive-xetex \
-            texlive-lang-chinese \
-            texlive-fonts-recommended \
-            latexmk
+        ${LTX_SUDO} apt-get update -qq
+        ${LTX_SUDO} apt-get install -y "${UBUNTU_LATEX_PACKAGES[@]}"
     fi
 
 
 
 elif command -v brew &> /dev/null; then
     echo "Processing for macOS..."
+    TLMGR_LATEX_PACKAGES=(
+        latexmk
+        ctex
+        breqn
+        unicode-math
+        adjustbox
+        xparse
+    )
+    BREW_LATEX_PACKAGES=(
+        basictex
+        font-noto-sans-cjk
+        font-noto-serif-cjk
+    )
+
+
+    # --------------- BREW -------------------
+    if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
+        echo -e "${GREEN}Using TUNA mirror for Homebrew...${NC}"
+        export HOMEBREW_API_DOMAIN="https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles/api"
+        export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles"
+        export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"
+    fi
+
     if ! brew list --cask basictex &>/dev/null; then
         brew install --cask basictex
     fi
+    # Note: The latest Homebrew already includes some fonts. Add || true to avoid tap error
+    brew tap homebrew/cask-fonts || true
+    brew install --cask "${BREW_LATEX_PACKAGES[@]}"
+
 
     # Vital for GitHub Actions: Persist PATH for subsequent steps
+    # --------------- TLMGR -------------------
     TEX_PATH="/Library/TeX/texbin"
     if [ -d "$TEX_PATH" ]; then
         export PATH="$TEX_PATH:$PATH"
         [ -n "$GITHUB_PATH" ] && echo "$TEX_PATH" >> "$GITHUB_PATH"
     fi
-
     TLMGR_BIN="$TEX_PATH/tlmgr"
 
     if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
         echo -e "${GREEN}Using temporary TUNA repository for tlmgr...${NC}"
         MIRROR_URL="https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/texlive/tlmgr/"
-        sudo "TLMGR_BIN" update --self --repository "$MIRROR_URL" || sudo "TLMGR_BIN" update --self --repository "$MIRROR_URL" --force
-        sudo "TLMGR_BIN" install latexmk ctex xecjk --repository "$MIRROR_URL"
+        ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" || ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" --force
+        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" --repository "$MIRROR_URL"
     else
         # Handle tlmgr version mismatch with a fallback force update
-        sudo "TLMGR_BIN" update --self || sudo "TLMGR_BIN" update --self --force
-        sudo "TLMGR_BIN" install latexmk ctex xecjk
+        ${LTX_SUDO} "$TLMGR_BIN" update --self || ${LTX_SUDO} "$TLMGR_BIN" update --self --force
+        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}"
+    fi
+
+    if command -v fc-cache &> /dev/null; then
+        echo "Refreshing font cache..."
+        ${LTX_SUDO} fc-cache -fv
     fi
 
 
 
 elif command -v pacman &> /dev/null; then
     echo "Processing for Arch Linux..."
+    PACMAN_LATEX_PACKAGES=(
+        texlive-bin
+        texlive-basic
+        texlive-latexextra
+        texlive-langchinese
+        texlive-fontsextra
+        noto-fonts
+        noto-fonts-cjk
+        latexmk
+        hunspell
+    )
+
     TEMP_PACMAN_CONF="/tmp/pacman_tuna.conf"
-    sudo cp /etc/pacman.conf "$TEMP_PACMAN_CONF"
-    sudo chmod 644 "$TEMP_PACMAN_CONF"
+    ${LTX_SUDO} cp /etc/pacman.conf "$TEMP_PACMAN_CONF"
+    ${LTX_SUDO} chmod 644 "$TEMP_PACMAN_CONF"
 
     if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
         echo -e "${GREEN}Injecting TUNA mirror into temporary config...${NC}"
-        sudo sed -i "/\[core\]/i Server = https://mirrors.tuna.tsinghua.edu.cn/archlinux/\$repo/os/\$arch\n" "$TEMP_PACMAN_CONF"
+        ${LTX_SUDO} sed -i "/\[core\]/i Server = https://mirrors.tuna.tsinghua.edu.cn/archlinux/\$repo/os/\$arch\n" "$TEMP_PACMAN_CONF"
     fi
 
-    sudo pacman -S --noconfirm --config "$TEMP_PACMAN_CONF" \
-        texlive-bin \
-        texlive-texmf-installer \
-        texlive-basic \
-        texlive-latexextra \
-        texlive-langchinese \
-        latexmk
-    sudo rm -f "$TEMP_PACMAN_CONF"
-
+    ${LTX_SUDO} pacman -S --noconfirm --config "$TEMP_PACMAN_CONF" "${PACMAN_LATEX_PACKAGES[@]}"
+    ${LTX_SUDO} rm -f "$TEMP_PACMAN_CONF"
+    ${LTX_SUDO} fc-cache -fv
 
 
 else

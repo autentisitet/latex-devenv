@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     LaTeX Build Engine - Optimized for template library.
 

@@ -39,13 +39,14 @@ done
 
 if [ "$(id -u)" -eq 0 ]; then
     export LTX_SUDO=""
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS does not require sudo except for writing to /Library and modifying system configuration.
+    export LTX_SUDO=""
+elif command -v sudo &> /dev/null; then
+    export LTX_SUDO="sudo"
 else
-    if command -v sudo &> /dev/null; then
-        export LTX_SUDO="sudo"
-    else
-        echo -e "\033[1;33mWarning: Not root and 'sudo' not found. Trying without it...\033[0m"
-        export LTX_SUDO=""
-    fi
+    echo -e "\033[1;33mWarning: Not root and 'sudo' not found. Trying without it...\033[0m"
+    export LTX_SUDO=""
 fi
 
 
@@ -123,12 +124,13 @@ elif command -v brew &> /dev/null; then
         export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"
     fi
 
-    if ! brew list --cask basictex &>/dev/null; then
-        brew install --cask basictex
-    fi
-    # Note: The latest Homebrew already includes some fonts. Add || true to avoid tap error
-    brew tap homebrew/cask-fonts || true
-    brew install --cask "${BREW_LATEX_PACKAGES[@]}"
+    for pkg in "${BREW_LATEX_PACKAGES[@]}"; do
+        if ! brew list --cask "$pkg" &>/dev/null; then
+            brew install --cask "$pkg"
+        else
+            echo "[✓] $pkg already installed"
+        fi
+    done
 
 
     # Vital for GitHub Actions: Persist PATH for subsequent steps
@@ -146,14 +148,17 @@ elif command -v brew &> /dev/null; then
         ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" \
             || ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" --force
         ${LTX_SUDO} "$TLMGR_BIN" update --all --repository "$MIRROR_URL"
-        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" --repository "$MIRROR_URL" --no-execute-actions
+        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" --repository "$MIRROR_URL"
     else
         # Handle tlmgr version mismatch with a fallback force update
         ${LTX_SUDO} "$TLMGR_BIN" update --self \
             || ${LTX_SUDO} "$TLMGR_BIN" update --self --force
         ${LTX_SUDO} "$TLMGR_BIN" update --all
-        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" --no-execute-actions
+        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}"
     fi
+
+    echo "Generating LaTeX formats..."
+    ${LTX_SUDO} fmtutil-sys --all || true
 
     ${LTX_SUDO} "${TLMGR_BIN}" path add
     if command -v fc-cache &> /dev/null; then

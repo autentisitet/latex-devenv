@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     LaTeX Core Setup for Windows (Scoop + MiKTeX).
 

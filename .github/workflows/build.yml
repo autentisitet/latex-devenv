@@ -100,7 +100,7 @@ jobs:
 
 
       - name: Setup LaTeX Environment (Windows)
-        shell: powershell
+        shell: pwsh
         run: |
           Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
           if (!(Test-Path "$env:USERPROFILE\scoop")) {
@@ -111,7 +111,7 @@ jobs:
 
 
       - name: Execute Build Engine (.ps1)
-        shell: powershell
+        shell: pwsh
         run: |
           $templates = @(
             "template\lab-report-template\main.tex"

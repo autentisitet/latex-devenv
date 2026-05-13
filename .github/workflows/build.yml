@@ -10,6 +10,11 @@ on:
 
 
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+
+
 jobs:
   # ------------------------------------------
   # --- Task 1: Linux Compilation and Script Auditing ---
@@ -99,6 +104,7 @@ jobs:
           if (!(Test-Path "$env:USERPROFILE\scoop")) {
               irm get.scoop.sh | iex
           }
+              $env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\scoop\current\bin;" + $env:PATH
           .\installer.ps1
 
 
@@ -153,8 +159,13 @@ jobs:
             template=$(basename $(dirname "$file"))
             cp "$file" "release-assets/${template}-${platform}.pdf"
           done
-          echo "Collected $(ls release-assets/*.pdf 2>/dev/null | wc -l) PDF files"
+          COUNT=$(ls release-assets/ | wc -l)
+          echo "Total assets PDF files collected: $COUNT"
           ls -lh release-assets/
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No PDF files were generated. Aborting release."
+            exit 1
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

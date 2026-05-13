@@ -76,30 +76,18 @@ foreach ($Item in $Dependencies){
     }
 }
 
-$ExportData = scoop bucket export | ConvertFrom-Json
-$InstalledBuckets = $ExportData.buckets.Name
+
+
 $RequiredBuckets = @("extras", "versions")
-foreach ($Item in $RequiredBuckets){
-    $Exists = $false
-    foreach ($Installed in $InstalledBuckets){
-        if ($Item -eq $Installed.Name){
-            $Exists = $true
-            break
+foreach ($Bucket in $RequiredBuckets) {
+    $result = scoop bucket add $Bucket 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[✓] Bucket '$Bucket' ready" -ForegroundColor Green
+    } else {
+        # 只有真正失败时才显示错误
+        if ($result -notlike "*already exists*") {
+            Write-Host "[!] Failed to add bucket '$Bucket': $result" -ForegroundColor Yellow
         }
-    }
-    if (-not $Exists){
-        Write-Host "The scoop $($Item) bucket hasn't been added."
-        try{
-            scoop bucket add $Item
-            Write-Host "The $($Item) bucket has been added."
-        }
-        catch{
-            Write-Error "The $($Item) bucket add in failure."
-            throw
-        }
-    }
-    else{
-        Write-Host "The scoop $($Item) bucket already exists."
     }
 }
 

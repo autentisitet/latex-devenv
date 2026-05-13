@@ -63,12 +63,26 @@ deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $CODENAME-security main restric
 EOF
         APT_OPT="-o Dir::Etc::SourceList=$TEMP_SOURCES -o Dir::Etc::SourceParts=/dev/null"
         sudo apt-get update $APT_OPT -qq
-        sudo apt-get install -y $APT_OPT texlive-latex-recommended texlive-latex-extra texlive-xetex latexmk
+        sudo apt-get install -y $APT_OPT \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-xetex \
+            texlive-lang-chinese \
+            texlive-fonts-recommended \
+            latexmk
         rm -f "$TEMP_SOURCES"
     else
         sudo apt-get update -qq
-        sudo apt-get install -y texlive-latex-recommended texlive-latex-extra texlive-xetex latexmk
+        sudo apt-get install -y \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-xetex \
+            texlive-lang-chinese \
+            texlive-fonts-recommended \
+            latexmk
     fi
+
+
 
 elif command -v brew &> /dev/null; then
     echo "Processing for macOS..."
@@ -78,21 +92,25 @@ elif command -v brew &> /dev/null; then
 
     # Vital for GitHub Actions: Persist PATH for subsequent steps
     TEX_PATH="/Library/TeX/texbin"
-    export PATH="$TEX_PATH:$PATH"
-    if [ -n "$GITHUB_PATH" ]; then
-        echo "$TEX_PATH" >> "$GITHUB_PATH"
+    if [ -d "$TEX_PATH" ]; then
+        export PATH="$TEX_PATH:$PATH"
+        [ -n "$GITHUB_PATH" ] && echo "$TEX_PATH" >> "$GITHUB_PATH"
     fi
+
+    TLMGR_BIN="$TEX_PATH/tlmgr"
 
     if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
         echo -e "${GREEN}Using temporary TUNA repository for tlmgr...${NC}"
         MIRROR_URL="https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/texlive/tlmgr/"
-        sudo tlmgr update --self --repository "$MIRROR_URL" || sudo tlmgr update --self --repository "$MIRROR_URL" --force
-        sudo tlmgr install latexmk --repository "$MIRROR_URL"
+        sudo "TLMGR_BIN" update --self --repository "$MIRROR_URL" || sudo "TLMGR_BIN" update --self --repository "$MIRROR_URL" --force
+        sudo "TLMGR_BIN" install latexmk ctex xecjk --repository "$MIRROR_URL"
     else
         # Handle tlmgr version mismatch with a fallback force update
-        sudo tlmgr update --self || sudo tlmgr update --self --force
-        sudo tlmgr install latexmk
+        sudo "TLMGR_BIN" update --self || sudo "TLMGR_BIN" update --self --force
+        sudo "TLMGR_BIN" install latexmk ctex xecjk
     fi
+
+
 
 elif command -v pacman &> /dev/null; then
     echo "Processing for Arch Linux..."
@@ -105,13 +123,23 @@ elif command -v pacman &> /dev/null; then
         sudo sed -i "/\[core\]/i Server = https://mirrors.tuna.tsinghua.edu.cn/archlinux/\$repo/os/\$arch\n" "$TEMP_PACMAN_CONF"
     fi
 
-    sudo pacman -S --noconfirm --config "$TEMP_PACMAN_CONF" texlive-bin texlive-core texlive-latexextra latexmk
+    sudo pacman -S --noconfirm --config "$TEMP_PACMAN_CONF" \
+        texlive-bin \
+        texlive-texmf-installer \
+        texlive-basic \
+        texlive-latexextra \
+        texlive-langchinese \
+        latexmk
     sudo rm -f "$TEMP_PACMAN_CONF"
+
+
 
 else
     echo -e "\033[1;31mError: No supported package manager found.\033[0m"
     exit 1
 fi
+
+
 
 # Verification Phase
 echo -e "${BLUE}==> Verifying Installation...${NC}"

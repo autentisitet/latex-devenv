@@ -125,7 +125,7 @@ $RequiredPaths = @(
 )
 foreach ($Item in $RequiredPaths){
     if ((Test-Path $Item) -and ($env:PATH -notlike "*$Item*")){
-        $env:PATH = "$Item;$env:PATH"
+        $env:PATH = "$($Item);$($env:PATH)"
         Write-Host "Added to PATH: $($Item)" -ForegroundColor Gray
     }
     else{

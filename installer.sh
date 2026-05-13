@@ -143,14 +143,19 @@ elif command -v brew &> /dev/null; then
     if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
         echo -e "${GREEN}Using temporary TUNA repository for tlmgr...${NC}"
         MIRROR_URL="https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/texlive/tlmgr/"
-        ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" || ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" --force
-        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" --repository "$MIRROR_URL"
+        ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" \
+            || ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" --force
+        ${LTX_SUDO} "$TLMGR_BIN" update --all --repository "$MIRROR_URL"
+        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" --repository "$MIRROR_URL" --no-execute-actions
     else
         # Handle tlmgr version mismatch with a fallback force update
-        ${LTX_SUDO} "$TLMGR_BIN" update --self || ${LTX_SUDO} "$TLMGR_BIN" update --self --force
-        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}"
+        ${LTX_SUDO} "$TLMGR_BIN" update --self \
+            || ${LTX_SUDO} "$TLMGR_BIN" update --self --force
+        ${LTX_SUDO} "$TLMGR_BIN" update --all
+        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" --no-execute-actions
     fi
 
+    ${LTX_SUDO} "${TLMGR_BIN}" path add
     if command -v fc-cache &> /dev/null; then
         echo "Refreshing font cache..."
         ${LTX_SUDO} fc-cache -fv
@@ -168,7 +173,6 @@ elif command -v pacman &> /dev/null; then
         texlive-fontsextra
         noto-fonts
         noto-fonts-cjk
-        latexmk
         hunspell
     )
 

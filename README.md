@@ -1,6 +1,6 @@
 # latex-devenv
 
-[![CI/CD Status](https://github.com/autentisitet/latex-devenv/actions/workflows/build.yml/badge.svg)](https://github.com/autentisitet/latex-devenv/actions)
+[![CI/CD Status](https://github.com/autentisitet/latex-devenv/actions/workflows/ltx-ci.yml/badge.svg)](https://github.com/autentisitet/latex-devenv/actions)
 [![GitHub release](https://img.shields.io/github/v/release/autentisitet/latex-devenv?include_prereleases)](https://github.com/autentisitet/latex-devenv/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/autentisitet/latex-devenv)
@@ -17,6 +17,7 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 * [⚠️ Prerequisite & Notices](#prerequisites)
 * [🔍 Architecture & Design Decisions](#architecture-decisions)
 * [🛠 Quick Start & Deployment](#setup-guide)
+* [🛠 Installer Configuration](#installer-config)
 * [🏗 The Enhanced Build Engine](#build-engine)
 * [🎨 Template Gallery](#templates)
 * [📖 Technical Reference](#technical-reference)
@@ -58,6 +59,10 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 
 * **Deep Workspace Decoupling** – Implements a strict separation between source logic (`.tex`, `.sty`) and transient metadata (`.aux`, `.log`), enforced via industrial-standard `.gitignore` patterns.
 
+* **Fine-Grained Privilege Separation** – Implements dual-layer sudo logic (`APP_SUDO` for package managers, `ADMIN_SUDO` for system-level operations). This ensures minimal privilege escalation while maintaining compatibility across Linux (requires sudo), macOS (selective sudo), and containerized environments (no sudo needed).
+
+* **CI/CD Log Optimization** – Implements smart log grouping (`::group::` / `::endgroup::`) with nested hierarchy support. Critical phases (dependency audit, compilation passes, result validation) are automatically foldable in GitHub Actions, dramatically reducing CI log noise while preserving full debugging capability.
+
 **Decision: Single-Engine Architecture**
 By standardizing exclusively on XeLaTeX, the suite eliminates "font-not-found" regressions across different operating systems while providing out-of-the-box UTF-8 support for CJK templates.
 
@@ -77,7 +82,7 @@ Suitable for rapid environment setup without local repository persistence.
 irm https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.ps1 | iex
 # For users in China (Enables TUNA mirror)
 $script = irm https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.ps1
-Invoke-Command -ScriptBlock ([scriptblock]::Create($script)) -ArgumentList "-Mirror"
+& ([scriptblock]::Create($script)) -Mirror
 ```
 
 * Linux / macOS / WSL (Bash):
@@ -126,14 +131,36 @@ The build engine provides a standardized interface for both PowerShell and Bash.
 * Windows
 
 ```powershell
+cd latex-devenv
 powershell -ExecutionPolicy Bypass -File .\ltx-build.ps1 -Template ".\template\lab-report-template\main.tex" -Clean
 ```
 
 * Linux / macOS / WSL
 
 ```bash
+cd latex-devenv
 chmod +x ltx-build.sh
 ./ltx-build.sh "./template/lab-report-template/main.tex" --clean
+```
+
+---
+
+## 🛠 Installer Configuration <a id="installer-config"></a>
+
+The `installer` script supports the following parameters for environment customization:
+
+| Parameter | PowerShell | Bash | Description |
+| :--- | :--- | :--- | :--- |
+| **Mirror** | `-Mirror` | `--mirror` | Use TUNA (Tsinghua University) mirror for faster downloads in China |
+| **Global Mode (Scoop)** | `-ScoopGlobal` | N/A | Install packages system-wide (Windows only) |
+| **Global Mode (MiKTeX)** | `-MpmGlobal` | N/A | Configure MiKTeX in administrative mode (Windows only) |
+| **Help** | `-Help` | `--help` | Display help information |
+
+**Usage Examples:**
+
+```powershell
+# Windows: Install with TUNA mirror and global mode
+.\installer.ps1 -Mirror -ScoopGlobal -MpmGlobal
 ```
 
 ---
@@ -226,7 +253,7 @@ git clean -fdX
 
 ## 🚀 CI/CD Integration <a id="cicd"></a>
 
-LtxEngine features a robust dual-stack CI/CD pipeline via GitHub Actions. Every push or tag triggers an atomic build process on both Ubuntu and Windows Server environments to ensure 100% template compatibility.
+LtxEngine features a **four-platform** CI/CD pipeline via GitHub Actions. Every push or tag triggers an atomic build process on **Ubuntu, Windows, macOS, and Arch Linux** Server environments to ensure 100% template compatibility.
 
 **Key Infrastructure Features:**
 
@@ -236,6 +263,8 @@ LtxEngine features a robust dual-stack CI/CD pipeline via GitHub Actions. Every 
 
 * **Automated Release:** When a version tag (e.g., v1.0.0) is pushed, the engine automatically aggregates compiled PDFs from all platforms and creates a GitHub Release.
 
+* **Smart Log Grouping:** GitHub Actions logs are organized into nested foldable groups, making CI output readable and debuggable.
+
 ---
 
 ## 📄 Metadata & License <a id="metadata"></a>
@@ -243,5 +272,5 @@ LtxEngine features a robust dual-stack CI/CD pipeline via GitHub Actions. Every 
 * **Author**: [@autentisitet](https://github.com/autentisitet)
 * **Compiler**: XeLaTeX (Primary Engine)
 * **Distribution**: MiKTeX(Windows) / TeX Live(Unix)
-* **Version**: 0.3.0 (pre-release)
+* **Version**: 0.4.0 (pre-release)
 * **License**: [MIT](LICENSE)

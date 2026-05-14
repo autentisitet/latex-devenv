@@ -12,6 +12,14 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+  CONTINUOUS_INTEGRATION: true
+
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 
 
@@ -21,6 +29,12 @@ jobs:
   # ------------------------------------------
   build-ubuntu:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      TZ: UTC
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -31,10 +45,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/texlive
-          key: ${{ runner.os }}-texlive-${{ hashFiles('installer.sh', 'template/**/main.tex') }}
-          restore-keys: |
-            ${{ runner.os }}-texlive-
-
+          key: ${{ runner.os }}-texlive-${{ hashFiles('installer.sh') }}
+          restore-keys: ${{ runner.os }}-texlive-
 
       - name: Setup LaTeX Environment (Ubuntu)
         run: |
@@ -71,6 +83,10 @@ jobs:
   # ------------------------------------------
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      SCOOP_NONINTERACTIVE: true
+      CHOCOLATEY_NONINTERACTIVE: true
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -94,7 +110,7 @@ jobs:
           path: |
             C:\Users\runneradmin\AppData\Local\MiKTeX
             C:\Users\runneradmin\AppData\Roaming\MiKTeX
-          key: ${{ runner.os }}-miktex-data-${{ hashFiles('installer.ps1', 'template/**/main.tex') }}
+          key: ${{ runner.os }}-miktex-data-${{ hashFiles('installer.ps1') }}
           restore-keys: |
             ${{ runner.os }}-miktex-data-
 
@@ -106,8 +122,10 @@ jobs:
           if (!(Test-Path "$env:USERPROFILE\scoop")) {
               irm get.scoop.sh | iex
           }
-          $env:PATH = "$env:USERPROFILE\scoop\shims;$env:USERPROFILE\scoop\apps\scoop\current\bin;" + $env:PATH
-          .\installer.ps1
+          "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "$env:USERPROFILE\scoop\apps\scoop\current\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+          .\installer.ps1 -ScoopGlobal -MpmGlobal
 
 
       - name: Execute Build Engine (.ps1)
@@ -140,12 +158,23 @@ jobs:
   # ------------------------------------------
   build-macos:
     runs-on: macos-latest
+    timeout-minutes: 15
+    env:
+      HOMEBREW_NO_INSTALL_CLEANUP: true
+      HOMEBREW_NO_ANALYTICS: true
+      HOMEBREW_NO_AUTO_UPDATE: true
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           clean: true
 
+      - name: Cache TeX Live (macOS)
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/texlive
+          key: ${{ runner.os }}-texlive-${{ hashFiles('installer.sh') }}
+          restore-keys: ${{ runner.os }}-texlive-
 
       - name: Setup LaTeX Environment (macOS)
         run: |
@@ -182,16 +211,25 @@ jobs:
   build-arch:
     runs-on: ubuntu-latest
     container: archlinux:latest
+    timeout-minutes: 15
+    env:
+      LC_ALL: C.UTF-8
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           clean: true
 
+      - name: Cache TeX Live (Arch)
+        uses: actions/cache@v4
+        with:
+          path: /root/.texlive
+          key: ${{ runner.os }}-arch-texlive-${{ hashFiles('installer.sh') }}
+          restore-keys: ${{ runner.os }}-arch-texlive-
+
       - name: Install base tools
         run: |
-          pacman -Syu --noconfirm git base-devel
-
+          pacman -Syu --noconfirm --needed git base-devel
 
       - name: Setup LaTeX Environment (Arch)
         run: |

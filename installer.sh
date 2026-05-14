@@ -11,6 +11,15 @@
 #    configuration files, making it easier to manage alongside complex tools like ROS.
 
 set -e
+# GitHub Actions grouping helpers
+if [ "$GITHUB_ACTIONS" = "true" ]; then
+    group() { echo "::group::$1"; }
+    endgroup() { echo "::endgroup::"; }
+else
+    group() { echo "=== $1 ==="; }
+    endgroup() { echo "=================="; }
+fi
+
 
 show_help() {
     echo "Usage: ./installer.sh [OPTIONS]"
@@ -37,16 +46,32 @@ while [[ $# -gt 0 ]]; do
 done
 
 
+HAS_SUDO=false
+if command -v sudo &> /dev/null; then
+    HAS_SUDO=true
+fi
+
+
 if [ "$(id -u)" -eq 0 ]; then
-    export LTX_SUDO=""
-elif [[ "$OSTYPE" == "darwin"* ]]; then
+    export APP_SUDO=""
+    export ADMIN_SUDO=""
+elif [ "$OSTYPE" == darwin* ]; then
     # macOS does not require sudo except for writing to /Library and modifying system configuration.
-    export LTX_SUDO=""
-elif command -v sudo &> /dev/null; then
-    export LTX_SUDO="sudo"
+    export APP_SUDO=""
+    if [ "$HAS_SUDO" = true ]; then
+        export ADMIN_SUDO="sudo"
+    else
+        export ADMIN_SUDO=""
+    fi
 else
-    echo -e "\033[1;33mWarning: Not root and 'sudo' not found. Trying without it...\033[0m"
-    export LTX_SUDO=""
+    if [ "$HAS_SUDO" = true ]; then
+        export APP_SUDO="sudo"
+        export ADMIN_SUDO="sudo"
+    else
+        echo -e "\033[1;33mWarning: Not root and 'sudo' not found. Trying without it...\033[0m"
+        export APP_SUDO=""
+        export ADMIN_SUDO=""
+    fi
 fi
 
 
@@ -80,7 +105,9 @@ if command -v apt-get &> /dev/null; then
         CODENAME=$(grep VERSION_CODENAME /etc/os-release | cut -d= -f2 || echo "focal")
     fi
 
+    APT_OPT=()
     if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
+        group "Setting Apt Mirror Config"
         echo -e "${GREEN}Using temporary TUNA mirror config...${NC}"
         TEMP_SOURCES="/tmp/tuna_sources.list"
         cat > "$TEMP_SOURCES" <<EOF
@@ -88,14 +115,19 @@ deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $CODENAME main restricted unive
 deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $CODENAME-updates main restricted universe multiverse
 deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $CODENAME-security main restricted universe multiverse
 EOF
-        APT_OPT="-o Dir::Etc::SourceList=$TEMP_SOURCES -o Dir::Etc::SourceParts=/dev/null"
-        ${LTX_SUDO} apt-get update $APT_OPT -qq
-        ${LTX_SUDO} apt-get install -y $APT_OPT "${UBUNTU_LATEX_PACKAGES[@]}"
-        rm -f "$TEMP_SOURCES"
-    else
-        ${LTX_SUDO} apt-get update -qq
-        ${LTX_SUDO} apt-get install -y "${UBUNTU_LATEX_PACKAGES[@]}"
+        APT_OPT=(
+            "-o" "Dir::Etc::SourceList=$TEMP_SOURCES"
+            "-o" "Dir::Etc::SourceParts=/dev/null"
+        )
+        endgroup
     fi
+
+    group "Installing LaTeX Packages(apt)"
+    ${APP_SUDO} apt-get update ${APT_OPT[@]} -qq
+    ${APP_SUDO} apt-get install -y ${APT_OPT[@]} "${UBUNTU_LATEX_PACKAGES[@]}"
+    [ -f "/tmp/tuna_sources.list" ] && rm -f "$TEMP_SOURCES"
+    endgroup
+
 
 
 
@@ -118,12 +150,15 @@ elif command -v brew &> /dev/null; then
 
     # --------------- BREW -------------------
     if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
+        group "Setting Brew Mirror Config"
         echo -e "${GREEN}Using TUNA mirror for Homebrew...${NC}"
         export HOMEBREW_API_DOMAIN="https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles/api"
         export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles"
         export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"
+        endgroup
     fi
 
+    group "Installing LaTeX Packages(Homebrew)"
     for pkg in "${BREW_LATEX_PACKAGES[@]}"; do
         if ! brew list --cask "$pkg" &>/dev/null; then
             brew install --cask "$pkg"
@@ -131,10 +166,12 @@ elif command -v brew &> /dev/null; then
             echo "[✓] $pkg already installed"
         fi
     done
+    endgroup
 
 
     # Vital for GitHub Actions: Persist PATH for subsequent steps
     # --------------- TLMGR -------------------
+    # basictex is a .pkg package that places the TeX engine in /Library/TeX/texbin.
     TEX_PATH="/Library/TeX/texbin"
     if [ -d "$TEX_PATH" ]; then
         export PATH="$TEX_PATH:$PATH"
@@ -142,29 +179,34 @@ elif command -v brew &> /dev/null; then
     fi
     TLMGR_BIN="$TEX_PATH/tlmgr"
 
+    TLMGR_REPO_OPT=()
     if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
+        group "Setting Tlmgr Mirror Config"
         echo -e "${GREEN}Using temporary TUNA repository for tlmgr...${NC}"
-        MIRROR_URL="https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/texlive/tlmgr/"
-        ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" \
-            || ${LTX_SUDO} "$TLMGR_BIN" update --self --repository "$MIRROR_URL" --force
-        ${LTX_SUDO} "$TLMGR_BIN" update --all --repository "$MIRROR_URL"
-        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" --repository "$MIRROR_URL"
-    else
-        # Handle tlmgr version mismatch with a fallback force update
-        ${LTX_SUDO} "$TLMGR_BIN" update --self \
-            || ${LTX_SUDO} "$TLMGR_BIN" update --self --force
-        ${LTX_SUDO} "$TLMGR_BIN" update --all
-        ${LTX_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}"
+        TLMGR_REPO_OPT=(
+            "--repository" "https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/texlive/tlmgr/"
+        )
+        endgroup
     fi
 
-    echo "Generating LaTeX formats..."
-    ${LTX_SUDO} fmtutil-sys --all || true
+    group "Installing TeX Packages(tlmgr)"
+    ${ADMIN_SUDO} "$TLMGR_BIN" update --self "${TLMGR_REPO_OPT[@]}" \
+        || ${ADMIN_SUDO} "$TLMGR_BIN" update --self "${TLMGR_REPO_OPT[@]}" --force
+    ${ADMIN_SUDO} "$TLMGR_BIN" update --all "${TLMGR_REPO_OPT[@]}"
+    ${ADMIN_SUDO} "$TLMGR_BIN" install "${TLMGR_LATEX_PACKAGES[@]}" "${TLMGR_REPO_OPT[@]}"
+    endgroup
 
-    ${LTX_SUDO} "${TLMGR_BIN}" path add
+    group "Generate LaTeX formats"
+    echo "Generating LaTeX formats..."
+    ${ADMIN_SUDO} fmtutil-sys --all || true
+    endgroup
+
+    ${ADMIN_SUDO} "${TLMGR_BIN}" path add
     if command -v fc-cache &> /dev/null; then
         echo "Refreshing font cache..."
-        ${LTX_SUDO} fc-cache -fv
+        fc-cache -fv
     fi
+    endgroup
 
 
 
@@ -173,6 +215,7 @@ elif command -v pacman &> /dev/null; then
     PACMAN_LATEX_PACKAGES=(
         texlive-bin
         texlive-basic
+        texlive-xetex
         texlive-latexextra
         texlive-langchinese
         texlive-fontsextra
@@ -181,19 +224,33 @@ elif command -v pacman &> /dev/null; then
         hunspell
     )
 
+
     TEMP_PACMAN_CONF="/tmp/pacman_tuna.conf"
-    ${LTX_SUDO} cp /etc/pacman.conf "$TEMP_PACMAN_CONF"
-    ${LTX_SUDO} chmod 644 "$TEMP_PACMAN_CONF"
+    ${ADMIN_SUDO} cp /etc/pacman.conf "$TEMP_PACMAN_CONF"
+    ${APP_SUDO} chmod 644 "$TEMP_PACMAN_CONF"
 
     if [ "$USE_MIRROR" = true ] && [ "$GITHUB_ACTIONS" != "true" ]; then
+        group "Setting Pacman Mirror Config"
         echo -e "${GREEN}Injecting TUNA mirror into temporary config...${NC}"
-        ${LTX_SUDO} sed -i "/\[core\]/i Server = https://mirrors.tuna.tsinghua.edu.cn/archlinux/\$repo/os/\$arch\n" "$TEMP_PACMAN_CONF"
+        ${APP_SUDO} sed -i "/\[core\]/i Server = https://mirrors.tuna.tsinghua.edu.cn/archlinux/\$repo/os/\$arch\n" "$TEMP_PACMAN_CONF"
+        endgroup
     fi
 
-    ${LTX_SUDO} pacman -S --noconfirm --config "$TEMP_PACMAN_CONF" "${PACMAN_LATEX_PACKAGES[@]}"
-    ${LTX_SUDO} rm -f "$TEMP_PACMAN_CONF"
-    ${LTX_SUDO} fc-cache -fv
+    group "Installing LaTeX Packages(pacman)"
+    ${APP_SUDO} pacman -S --noconfirm --config "$TEMP_PACMAN_CONF" "${PACMAN_LATEX_PACKAGES[@]}"
+    rm -f "$TEMP_PACMAN_CONF"
+    endgroup
 
+    group "Generate LaTeX formats"
+    if ! kpsewhich xelatex.fmt > /dev/null 2>&1; then
+        echo "xeLaTeX format not found. Initializing TeX Live system formats..."
+        ${ADMIN_SUDO} fmtutil-sys --all
+    else
+        echo "[√] TeX Live formats are already initialized."
+    fi
+    endgroup
+
+    fc-cache -fv
 
 else
     echo -e "\033[1;31mError: No supported package manager found.\033[0m"
@@ -203,11 +260,13 @@ fi
 
 
 # Verification Phase
+group "Verify Installation"
 echo -e "${BLUE}==> Verifying Installation...${NC}"
 if command -v latexmk &> /dev/null; then
-    echo -e "${GREEN}✅ latexmk is ready: $(latexmk -v | head -n1)${NC}"
+    echo -e "${GREEN}[√] latexmk is ready: $(latexmk -v | head -n1)${NC}"
 else
-    echo -e "\033[1;31m⚠️ latexmk not found. Path issues may persist.${NC}"
+    echo -e "\033[1;31m[X] latexmk not found. Path issues may persist.${NC}"
 fi
 
 echo -e "\n${GREEN}Setup completed successfully.${NC}"
+endgroup

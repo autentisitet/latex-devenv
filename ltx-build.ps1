@@ -37,6 +37,17 @@ if ($Help) {
 }
 
 
+if ($env:GITHUB_ACTIONS -eq 'true') {
+    function Githubgroup { Write-Host "::group::$args" }
+    function Githubendgroup { Write-Host "::endgroup::" }
+} else {
+    function Githubgroup { Write-Host "=== $args ===" -ForegroundColor Cyan }
+    function Githubendgroup { Write-Host "==================" -ForegroundColor Gray }
+}
+
+
+
+
 # ---------------------------------------------------------
 # 1. Visual header (always visible, useful for CI log search)
 # ---------------------------------------------------------
@@ -75,6 +86,7 @@ function Get-RequiredPackages {
     return $packages | Select-Object -Unique
 }
 
+Githubgroup "Dependency audit"
 $needed = Get-RequiredPackages -Path $Template
 $missing = @()
 
@@ -87,10 +99,14 @@ if ($missing.Count -gt 0) {
     Write-Host "[!] Hint: Local packages not found: $($missing -join ', ')" -ForegroundColor Yellow
     Write-Host "    MiKTeX will start Auto-Install mode to silently download them." -ForegroundColor Gray
 }
+Githubendgroup
+
+
 
 # ---------------------------------------------------------
 # 3. Perform cleanup (based on -Clean switch)
 # ---------------------------------------------------------
+Githubgroup "Deep sanitization"
 if ($Clean) {
     Write-Host ">>> Performing deep sanitization (25+ extensions)..." -ForegroundColor Cyan
 
@@ -121,6 +137,9 @@ if ($Clean) {
         Write-Host "Workspace is already pristine. No debris found." -ForegroundColor Gray
     }
 }
+Githubendgroup
+
+
 
 # ---------------------------------------------------------
 # 4. Core compilation logic
@@ -156,13 +175,20 @@ function Invoke-Compile {
 
 }
 
+Githubgroup "Compilation: First pass"
 Invoke-Compile -StepName "First pass (generate auxiliary indices)"
+Githubendgroup
+
+Githubgroup
 Invoke-Compile -StepName "Second pass (resolve cross-references/TOC)"
+Githubendgroup
+
 
 
 # ---------------------------------------------------------
 # 5. Result validation
 # ---------------------------------------------------------
+Githubgroup "Result validation"
 $pdfPath = Join-Path $targetDir "$baseName.pdf"
 
 if (Test-Path $pdfPath) {
@@ -172,3 +198,4 @@ if (Test-Path $pdfPath) {
     Write-Host "`n[✘] Failure: Could not generate PDF file." -ForegroundColor Red
     exit 1
 }
+Githubendgroup

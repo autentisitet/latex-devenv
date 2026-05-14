@@ -4,6 +4,18 @@
 # Optimized for LaTeX template repositories and CI/CD pipelines.
 
 # Default values
+set -e
+
+# GitHub Actions grouping helpers
+if [ "$GITHUB_ACTIONS" = "true" ]; then
+    group() { echo "::group::$1"; }
+    endgroup() { echo "::endgroup::"; }
+else
+    group() { echo "=== $1 ==="; }
+    endgroup() { echo "=================="; }
+fi
+
+
 TEMPLATE="main.tex"
 CLEAN=0
 
@@ -28,6 +40,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # 1. Environment & Path Audit
+group "Environment & Path Audit"
 [ ! -f "$TEMPLATE" ] && printf "\033[0;31m[!] Error: Template [%s] not found\033[0m\n" "$TEMPLATE" >&2 && exit 1
 command -v xelatex >/dev/null 2>&1 || { printf "\033[0;31m[!] Error: xelatex (XeTeX) not found in PATH\033[0m\n" >&2; exit 1; }
 
@@ -38,6 +51,7 @@ printf "\033[0;35m========================================\033[0m\n"
 
 # 2. Dependency Audit (Scanning \usepackage and \RequirePackage)
 if command -v kpsewhich >/dev/null 2>&1; then
+    group "Dependency audit"
     missing=$(grep -Eho '\\(usepackage|RequirePackage)(\[[^]]*\])?\{[^}]+\}' "$TEMPLATE" 2>/dev/null | \
               sed -E 's/\\(usepackage|RequirePackage)(\[[^]]*\])?\{([^}]+)\}/\3/' | \
               tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sort -u | \
@@ -46,10 +60,15 @@ if command -v kpsewhich >/dev/null 2>&1; then
                   kpsewhich "${pkg}.sty" >/dev/null 2>&1 || kpsewhich "${pkg}.cls" >/dev/null 2>&1 || echo "$pkg"
               done | tr '\n' ' ')
     [ -n "$missing" ] && printf "\033[1;33m[?] Missing assets: %s (Will attempt JIT install)\033[0m\n" "$missing"
+    endgroup
 fi
+endgroup
+
+
 
 # 3. Atomic Clean
 if [ "$CLEAN" -eq 1 ]; then
+    group "Deep sanitization"
     printf "\033[0;36m>>> Performing deep sanitization (25+ extensions)...\033[0m\n"
 
     # Define all extensions in a regex-friendly format
@@ -68,6 +87,7 @@ if [ "$CLEAN" -eq 1 ]; then
     fi
 
     printf "\033[0;32mCleanup completed successfully.\033[0m\n"
+    endgroup
 fi
 
 
@@ -78,6 +98,7 @@ PURE_FILENAME=$(basename "$TEMPLATE")
 
 pushd "$TARGET_DIR" > /dev/null || exit 1
 
+group "Multri-Pass Compilation"
 for pass in 1 2; do
     printf "\n\033[0;36m>>> Pass %d: Compilation in progress...\033[0m\n" "$pass"
 
@@ -90,9 +111,12 @@ for pass in 1 2; do
     fi
 done
 popd > /dev/null
+endgroup
+
 
 
 # 5. Success Validation
+group "Result validation"
 base_name=$(basename "${TEMPLATE%.tex}")
 pdf_output="${TARGET_DIR}/${base_name}.pdf"
 
@@ -109,3 +133,4 @@ else
     printf "\033[0;31m\n[✘] Error: Build finished but %s was not found.\033[0m\n" "$pdf_output" >&2
     exit 1
 fi
+endgroup

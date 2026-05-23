@@ -206,7 +206,6 @@ elif command -v brew &> /dev/null; then
         echo "Refreshing font cache..."
         fc-cache -fv
     fi
-    endgroup
 
 
 

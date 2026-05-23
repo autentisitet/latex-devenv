@@ -233,7 +233,7 @@ Githubgroup "Initializing MIKTEX"
 else{
     Write-Host "[√] MiKTeX core is already initialized."
 }
-endgroup
+Githubendgroup
 
 
 

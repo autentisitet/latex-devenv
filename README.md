@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/autentisitet/latex-devenv)
 [![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
+[![Version](https://img.shields.io/badge/version-0.4.0--beta-blue.svg)](https://github.com/autentisitet/latex-devenv)
 
 **A cross-platform automation suite for on-premises LaTeX workflows.**
 
@@ -272,5 +273,5 @@ LtxEngine features a **four-platform** CI/CD pipeline via GitHub Actions. Every 
 * **Author**: [@autentisitet](https://github.com/autentisitet)
 * **Compiler**: XeLaTeX (Primary Engine)
 * **Distribution**: MiKTeX(Windows) / TeX Live(Unix)
-* **Version**: 0.4.0 (pre-release)
+* **Version**: 0.4.0-beta (pre-release)
 * **License**: [MIT](LICENSE)

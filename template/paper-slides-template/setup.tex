@@ -52,9 +52,33 @@
 \definecolor{myorange}{RGB}{190,88,32}
 
 % English fonts
-\setmainfont{Times New Roman}
-\setsansfont{Arial}
-\setmonofont{Courier New}
+\IfFontExistsTF{Times New Roman}{
+  \setmainfont{Times New Roman}
+}{
+  \IfFontExistsTF{TeX Gyre Termes}{
+    \setmainfont{TeX Gyre Termes}
+  }{
+    \setmainfont{Latin Modern Roman}
+  }
+}
+\IfFontExistsTF{Arial}{
+  \setsansfont{Arial}
+}{
+  \IfFontExistsTF{TeX Gyre Heros}{
+    \setsansfont{TeX Gyre Heros}
+  }{
+    \setsansfont{Latin Modern Sans}
+  }
+}
+\IfFontExistsTF{Courier New}{
+  \setmonofont{Courier New}
+}{
+  \IfFontExistsTF{TeX Gyre Cursor}{
+    \setmonofont{TeX Gyre Cursor}
+  }{
+    \setmonofont{Latin Modern Mono}
+  }
+}
 
 % Info box (neutral, informative)
 \newtcolorbox{infobox}[1]{%

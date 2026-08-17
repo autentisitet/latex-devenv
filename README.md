@@ -226,6 +226,7 @@ This suite prioritizes **XeLaTeX** for modern Unicode (UTF-8) handling and syste
 | **LaTeX** | **The Heritage Engine**. The original engine that outputs `.dvi` files instead of PDF. | Historical projects only; largely deprecated for modern workflows. |
 
 > **Note**: The build scripts (`ltx-build.ps1`/`ltx-build.sh`) default to **XeLaTeX** to ensure cross-platform font consistency.
+> Templates prefer Windows system fonts when available and automatically fall back to TeX Gyre, Latin Modern, or Noto CJK fonts in Debian/Ubuntu and Podman environments.
 
 ---
 

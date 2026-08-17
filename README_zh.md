@@ -137,6 +137,8 @@ Debian、Ubuntu、WSL 或 Podman：
 
 `--clean`/`-Clean` 会在编译前清理 `.aux`、`.log`、`.toc`、`.nav` 等临时文件。构建引擎使用 XeLaTeX 并执行两轮编译，以解析目录和交叉引用。
 
+模板会优先使用 Windows 系统字体；在 Debian、Ubuntu 和 Podman 中，会自动回退到 TeX Gyre、Latin Modern 和 Noto CJK 字体，不需要安装 Arial、Times New Roman 等专有字体。
+
 内置模板：
 
 - `template/lab-report-template/main.tex`

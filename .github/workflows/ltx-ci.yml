@@ -30,7 +30,7 @@ jobs:
 
       - name: Restore Podman apt image cache
         id: podman-image-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/latex-devenv/latex-devenv-ci.tar
           key: latex-devenv-podman-${{ runner.os }}-${{ hashFiles('Containerfile', 'installer.sh') }}
@@ -43,11 +43,33 @@ jobs:
         if: steps.podman-image-cache.outputs.cache-hit != 'true'
         run: podman build --tag latex-devenv:ci --file Containerfile .
 
+      - name: Verify LaTeX packages and fonts
+        run: |
+          podman run --rm latex-devenv:ci bash -lc '
+            set -e
+            for command_name in xelatex latexmk kpsewhich fc-match; do
+              command -v "$command_name" >/dev/null
+            done
+            for tex_file in ctex.sty tcolorbox.sty breqn.sty pgfplots.sty unicode-math.sty; do
+              kpsewhich "$tex_file" >/dev/null
+            done
+            fc-match "Noto Serif CJK SC" | grep -qi "Noto"
+            fc-match "TeX Gyre Termes" | grep -qi "Termes"
+            fc-match "Latin Modern Roman" | grep -qi "Latin Modern"
+          '
+
       - name: Save Podman image for later CI runs
         if: steps.podman-image-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/.cache/latex-devenv
           podman save --output ~/.cache/latex-devenv/latex-devenv-ci.tar latex-devenv:ci
+
+      - name: Store Podman apt image cache immediately
+        if: steps.podman-image-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/latex-devenv/latex-devenv-ci.tar
+          key: latex-devenv-podman-${{ runner.os }}-${{ hashFiles('Containerfile', 'installer.sh') }}
 
       - name: Build LaTeX templates in the container
         run: |

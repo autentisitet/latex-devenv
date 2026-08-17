@@ -56,6 +56,8 @@ packages=(
     ca-certificates
     fonts-noto-cjk
     fonts-noto-cjk-extra
+    fonts-lmodern
+    fonts-texgyre
     hunspell
     latexmk
     poppler-utils

@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Debian%2FUbuntu%20%7C%20Podman-blue)](https://github.com/autentisitet/latex-devenv)
 [![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/autentisitet/latex-devenv)
+[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/autentisitet/latex-devenv)
 
 面向本地 LaTeX 工作流的自动化开发环境。Windows 使用 MiKTeX，Bash、Podman 与 CI 使用统一的 Debian/Ubuntu apt TeX Live 环境。
 
@@ -152,15 +152,15 @@ Debian、Ubuntu、WSL 或 Podman：
 
 ## CI/CD <a id="zh-ci"></a>
 
-当前 GitHub Actions 工作流只使用 apt/Podman 环境：
+当前 GitHub Actions 会同时检查 Windows/MiKTeX 和 Linux/Podman/TeX Live；只有 Podman 生成的 PDF 被视为最终版本：
 
-1. 在 Ubuntu runner 上通过 apt 安装 Podman。
-2. 尝试恢复已经构建完成的 Podman apt/TeX Live 镜像缓存。
-3. 缓存未命中时，使用 `Containerfile` 构建 Ubuntu 24.04 LaTeX 镜像。
-4. 检查 XeLaTeX、模板宏包以及 Noto、TeX Gyre、Latin Modern 字体，通过后立即保存缓存。
-5. 在容器内构建三个模板。
-6. 上传 `pdf-assets-apt-podman` PDF 构建产物。
-7. 对 `main` 的 push 构建，将有变化的三个模板 PDF 由 `github-actions[bot]` 自动提交回仓库；PR 和手动运行不会写入仓库。
+1. Windows job 恢复或安装用户级 Scoop/MiKTeX，检查宏包并编译三个模板。
+2. Linux job 在 Ubuntu runner 上恢复或构建 Podman apt/TeX Live 镜像。
+3. Linux job 检查 XeLaTeX、模板宏包以及 Noto、TeX Gyre、Latin Modern 字体。
+4. 两个平台分别编译三个模板，任意一边失败都会使 CI 失败。
+5. Windows PDF 只用于临时验证，runner 结束后丢弃。
+6. 仅上传 Podman 生成的 `pdf-assets-apt-podman` PDF 构建产物。
+7. 两个平台都通过后，对 `main` 的 push 构建，将 Podman 生成的 PDF 由 `github-actions[bot]` 自动提交回仓库；PR 和手动运行不会写入仓库。
 
 这样本地 Podman 与 CI 使用完全相同的 apt 包列表，不依赖 runner 预装的 LaTeX 环境。
 
@@ -168,11 +168,13 @@ Debian、Ubuntu、WSL 或 Podman：
 
 Podman 镜像缓存只适用于 Linux。Windows 使用独立的 Scoop/MiKTeX 环境：安装器会预装模板直接使用的顶层宏包，同时保留 JIT 自动安装以处理间接依赖和未来新增依赖。以后如果恢复 Windows CI，用户级安装应分别缓存 Scoop 根目录、`%LOCALAPPDATA%\MiKTeX` 和 `%APPDATA%\MiKTeX`；全局安装则缓存对应的 `C:\ProgramData` 目录，不能复用 Linux 镜像归档。Linux 镜像缓存会在环境构建完成后立即保存，因此后续模板编译即使失败，下一次运行仍可复用已经准备好的 LaTeX 环境。
 
-CI 全程不需要 GUI 或人工确认：apt 使用无交互模式，基础镜像使用完整 registry 地址避免 Podman 弹出镜像源选择，每个模板最多构建八分钟，异常时会直接失败而不是等待整个 job 超时。
+CI 全程不需要 GUI 或人工确认：apt 使用无交互模式；MiKTeX 禁止用户交互并启用宏包自动安装；Windows CI 明确跳过 SumatraPDF 和所有桌面组件。Linux 模板最多构建八分钟，Windows 安装和编译步骤也分别设置了硬超时，异常弹窗不会一直拖到整个 job 超时。
 
 自动生成的 PDF commit 会包含 `[skip ci]`，避免 bot 提交再次触发递归构建。仓库设置需要允许 GitHub Actions 写入 repository contents；如果 `main` 启用了分支保护，还需要允许 `github-actions[bot]` 推送。
 
-为保护 token，构建 job 只有仓库只读权限，并且 checkout 后不保留 Git 凭据。只有独立的 PDF 提交 job 拥有 `contents: write`，该 job 不执行仓库中的构建脚本。官方 GitHub Actions 均固定到已核验的完整 commit SHA。PR 可以读取 `main` 的可信镜像缓存，但不能写入新缓存或推送生成文件。
+为保护 token，两个构建 job 都只有仓库只读权限，并且 checkout 后不保留 Git 凭据。只有独立的 PDF 提交 job 拥有 `contents: write`，该 job 不执行仓库中的构建脚本。官方 GitHub Actions 均固定到已核验的完整 commit SHA。PR 可以读取 `main` 的可信缓存，但不能写入新缓存或推送生成文件。
+
+Windows job 只 fetch 已核验的 Scoop 安装器 commit，并在执行前比较完整 SHA。apt 会验证 Ubuntu 仓库签名，Scoop 会验证包哈希，MiKTeX 管理宏包元数据和校验信息，配置的 TUNA 镜像使用 HTTPS。剩余供应链边界是 Ubuntu、Scoop、MiKTeX、GitHub 和 Docker Hub 的上游基础设施；两个构建 job 都无法访问长期仓库 token。
 
 ---
 
@@ -203,7 +205,7 @@ git clean -fdX
 - 主要编译器：XeLaTeX
 - Windows 发行版：MiKTeX
 - Debian/Ubuntu/Podman 发行版：TeX Live
-- 版本：1.0.0
+- 版本：1.0.1
 - 许可证：[MIT](LICENSE)
 
 [返回顶部](#latex-devenv) · [English README](README.md)

@@ -253,12 +253,37 @@ Invoke-NativeCommand initexmf (@('--set-config-value=[MPM]AutoInstall=1') + $Mpm
 Invoke-NativeCommand initexmf (@('--set-config-value=[General]AllowUserInteractions=0') + $MpmArgs)
 Invoke-NativeCommand initexmf (@('--mkmaps', '--quiet') + $MpmArgs)
 
-Write-Host "Installing latexmk via mpm..." -ForegroundColor Cyan
+Write-Host "Installing required LaTeX packages via mpm..." -ForegroundColor Cyan
 if ($Mirror -and -not $env:GITHUB_ACTIONS) {
     Write-Host "Mirror flag detected. Switching MiKTeX to TUNA mirror..." -ForegroundColor Green
     Invoke-NativeCommand mpm ($MpmArgs + '--set-repository=https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/win32/miktex/tm/packages/')
 }
-Invoke-NativeCommand mpm ($MpmArgs + '--install=latexmk')
+$RequiredMiKTeXPackages = @(
+    'latexmk',
+    'amsmath',
+    'beamer',
+    'booktabs',
+    'ctex',
+    'breqn',
+    'adjustbox',
+    'enumitem',
+    'etoolbox',
+    'fontspec',
+    'geometry',
+    'graphics',
+    'hyperref',
+    'listings',
+    'pgf',
+    'pgfplots',
+    'setspace',
+    'tcolorbox',
+    'unicode-math',
+    'url',
+    'xcolor'
+)
+foreach ($Package in $RequiredMiKTeXPackages) {
+    Invoke-NativeCommand mpm ($MpmArgs + "--install=$Package")
+}
 Githubendgroup
 
 

@@ -25,8 +25,8 @@ jobs:
 
       - name: Install Podman with apt
         run: |
-          sudo apt-get update
-          sudo apt-get install -y podman
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 install -y podman
 
       - name: Restore Podman apt image cache
         id: podman-image-cache
@@ -62,7 +62,7 @@ jobs:
                 template/paper-slides-template/main.tex \
                 template/ppt-template/main.tex
               do
-                ./ltx-build.sh "$template" --clean
+                timeout --signal=TERM 8m bash ./ltx-build.sh "$template" --clean
               done
             '
 

@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Debian%2FUbuntu%20%7C%20Podman-blue)](https://github.com/autentisitet/latex-devenv)
 [![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
-[![Version](https://img.shields.io/badge/version-0.4.0--beta-blue.svg)](https://github.com/autentisitet/latex-devenv)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/autentisitet/latex-devenv)
 
 **A cross-platform automation suite for on-premises LaTeX workflows.**
 
@@ -274,9 +274,11 @@ LtxEngine uses a single apt-based Podman environment in GitHub Actions. The CI i
 
 * **Non-interactive execution:** apt uses non-interactive mode, the base image uses a fully qualified registry name, and each template build has an eight-minute timeout. No CI step requires a GUI or manual confirmation.
 
-* **Artifact output:** Generated PDFs are uploaded as the `pdf-assets-apt-podman` artifact.
+* **Artifact and repository output:** Generated PDFs are uploaded as the `pdf-assets-apt-podman` artifact. On pushes to `main`, changed template PDFs are also committed back by `github-actions[bot]`; PRs and manually dispatched runs never write to the repository.
 
 The first CI run still downloads and installs the complete TeX Live environment. Later runs load the cached image unless `Containerfile` or `installer.sh` changes. Template and build-script changes do not invalidate the environment cache because the repository is mounted into `/workspace` when compilation starts.
+
+The PDF update commit contains `[skip ci]` to prevent recursive workflow runs. Repository settings must allow GitHub Actions to write repository contents, and branch protection rules must permit `github-actions[bot]` to push to `main`.
 
 The Podman image cache is Linux-specific. Windows uses a separate Scoop/MiKTeX installation: the installer preloads the templates' top-level packages and keeps automatic package installation enabled for transitive or future dependencies. A future Windows CI job should cache the applicable Scoop root plus `%LOCALAPPDATA%\MiKTeX` and `%APPDATA%\MiKTeX` for a user installation, or the corresponding `C:\ProgramData` directories for a global installation. It must not restore the Linux image archive. Linux CI also performs a smoke test for the required TeX packages and the Noto, TeX Gyre, and Latin Modern font families before compiling templates.
 
@@ -287,5 +289,5 @@ The Podman image cache is Linux-specific. Windows uses a separate Scoop/MiKTeX i
 * **Author**: [@autentisitet](https://github.com/autentisitet)
 * **Compiler**: XeLaTeX (Primary Engine)
 * **Distribution**: MiKTeX (Windows) / TeX Live (Debian, Ubuntu, WSL and Podman)
-* **Version**: 0.4.0-beta (pre-release)
+* **Version**: 1.0.0
 * **License**: [MIT](LICENSE)

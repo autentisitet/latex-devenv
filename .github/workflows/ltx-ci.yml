@@ -50,16 +50,36 @@ jobs:
       - name: Verify LaTeX packages and fonts
         run: |
           podman run --rm latex-devenv:ci bash -lc '
-            set -e
+            set -euo pipefail
             for command_name in xelatex latexmk kpsewhich fc-match; do
-              command -v "$command_name" >/dev/null
+              if command -v "$command_name" >/dev/null; then
+                echo "[OK] command: $command_name"
+              else
+                echo "[ERROR] command not found: $command_name" >&2
+                exit 1
+              fi
             done
             for tex_file in ctex.sty tcolorbox.sty breqn.sty pgfplots.sty unicode-math.sty; do
-              kpsewhich "$tex_file" >/dev/null
+              if kpsewhich "$tex_file" >/dev/null; then
+                echo "[OK] TeX package: $tex_file"
+              else
+                echo "[ERROR] TeX package not found: $tex_file" >&2
+                exit 1
+              fi
             done
-            fc-match "Noto Serif CJK SC" | grep -qi "Noto"
-            fc-match "TeX Gyre Termes" | grep -qi "Termes"
-            fc-match "Latin Modern Roman" | grep -qi "Latin Modern"
+            check_font() {
+              requested_font="$1"
+              expected_pattern="$2"
+              matched_font="$(fc-match --format "%{family}\n" "$requested_font")"
+              echo "[INFO] font: $requested_font -> $matched_font"
+              if ! grep -Fqi "$expected_pattern" <<< "$matched_font"; then
+                echo "[ERROR] expected font family was not found: $requested_font" >&2
+                exit 1
+              fi
+            }
+            check_font "Noto Serif CJK SC" "Noto Serif CJK SC"
+            check_font "TeX Gyre Termes" "TeX Gyre Termes"
+            check_font "Latin Modern Roman" "Latin Modern Roman"
           '
 
       - name: Save Podman image for later CI runs

@@ -54,6 +54,7 @@ fi
 
 packages=(
     ca-certificates
+    fontconfig
     fonts-noto-cjk
     fonts-noto-cjk-extra
     fonts-lmodern

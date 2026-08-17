@@ -271,6 +271,8 @@ LtxEngine uses a single apt-based Podman environment in GitHub Actions. The CI i
 
 * **Reusable Podman image cache:** CI saves the completed apt/TeX Live image and restores it on later runs. The cache key is derived from `Containerfile` and `installer.sh`, so package or image changes automatically trigger a clean rebuild.
 
+* **Non-interactive execution:** apt uses non-interactive mode, the base image uses a fully qualified registry name, and each template build has an eight-minute timeout. No CI step requires a GUI or manual confirmation.
+
 * **Artifact output:** Generated PDFs are uploaded as the `pdf-assets-apt-podman` artifact.
 
 The first CI run still downloads and installs the complete TeX Live environment. Later runs load the cached image unless `Containerfile` or `installer.sh` changes. Template and build-script changes do not invalidate the environment cache because the repository is mounted into `/workspace` when compilation starts.

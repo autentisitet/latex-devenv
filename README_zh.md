@@ -159,6 +159,8 @@ Debian、Ubuntu、WSL 或 Podman：
 
 缓存键由 `Containerfile` 和 `installer.sh` 的内容生成。修改基础镜像或 apt 包列表会自动重建缓存；只修改模板、README 或构建脚本不会重新下载整个 TeX Live 环境，因为编译时会将当前仓库挂载到容器的 `/workspace`。首次运行仍然需要完整安装，后续运行会直接加载缓存镜像。
 
+CI 全程不需要 GUI 或人工确认：apt 使用无交互模式，基础镜像使用完整 registry 地址避免 Podman 弹出镜像源选择，每个模板最多构建八分钟，异常时会直接失败而不是等待整个 job 超时。
+
 ---
 
 ## Windows CI 超时说明 <a id="zh-windows-timeout"></a>

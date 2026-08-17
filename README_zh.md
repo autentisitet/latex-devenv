@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-[![CI/CD 状态](https://github.com/autentisitet/latex-devenv/actions/workflows/ltx-ci.yml/badge.svg)](https://github.com/autentisitet/latex-devenv/actions)
+[![CI/CD 状态](https://github.com/autentisitet/latex-devenv/actions/workflows/ltx-ci.yml/badge.svg?branch=main)](https://github.com/autentisitet/latex-devenv/actions/workflows/ltx-ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Debian%2FUbuntu%20%7C%20Podman-blue)](https://github.com/autentisitet/latex-devenv)
 [![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
@@ -153,13 +153,16 @@ Debian、Ubuntu、WSL 或 Podman：
 
 1. 在 Ubuntu runner 上通过 apt 安装 Podman。
 2. 尝试恢复已经构建完成的 Podman apt/TeX Live 镜像缓存。
-3. 缓存未命中时，使用 `Containerfile` 构建 Ubuntu 24.04 LaTeX 镜像并保存缓存。
-4. 在容器内构建三个模板。
-5. 上传 `pdf-assets-apt-podman` PDF 构建产物。
+3. 缓存未命中时，使用 `Containerfile` 构建 Ubuntu 24.04 LaTeX 镜像。
+4. 检查 XeLaTeX、模板宏包以及 Noto、TeX Gyre、Latin Modern 字体，通过后立即保存缓存。
+5. 在容器内构建三个模板。
+6. 上传 `pdf-assets-apt-podman` PDF 构建产物。
 
 这样本地 Podman 与 CI 使用完全相同的 apt 包列表，不依赖 runner 预装的 LaTeX 环境。
 
 缓存键由 `Containerfile` 和 `installer.sh` 的内容生成。修改基础镜像或 apt 包列表会自动重建缓存；只修改模板、README 或构建脚本不会重新下载整个 TeX Live 环境，因为编译时会将当前仓库挂载到容器的 `/workspace`。首次运行仍然需要完整安装，后续运行会直接加载缓存镜像。
+
+Podman 镜像缓存只适用于 Linux。Windows 使用独立的 Scoop/MiKTeX 环境：安装器会预装模板直接使用的顶层宏包，同时保留 JIT 自动安装以处理间接依赖和未来新增依赖。以后如果恢复 Windows CI，用户级安装应分别缓存 Scoop 根目录、`%LOCALAPPDATA%\MiKTeX` 和 `%APPDATA%\MiKTeX`；全局安装则缓存对应的 `C:\ProgramData` 目录，不能复用 Linux 镜像归档。Linux 镜像缓存会在环境构建完成后立即保存，因此后续模板编译即使失败，下一次运行仍可复用已经准备好的 LaTeX 环境。
 
 CI 全程不需要 GUI 或人工确认：apt 使用无交互模式，基础镜像使用完整 registry 地址避免 Podman 弹出镜像源选择，每个模板最多构建八分钟，异常时会直接失败而不是等待整个 job 超时。
 

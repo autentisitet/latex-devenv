@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-[![CI/CD Status](https://github.com/autentisitet/latex-devenv/actions/workflows/ltx-ci.yml/badge.svg)](https://github.com/autentisitet/latex-devenv/actions)
+[![CI/CD Status](https://github.com/autentisitet/latex-devenv/actions/workflows/ltx-ci.yml/badge.svg?branch=main)](https://github.com/autentisitet/latex-devenv/actions/workflows/ltx-ci.yml)
 [![GitHub release](https://img.shields.io/github/v/release/autentisitet/latex-devenv?include_prereleases)](https://github.com/autentisitet/latex-devenv/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Debian%2FUbuntu%20%7C%20Podman-blue)](https://github.com/autentisitet/latex-devenv)
@@ -270,13 +270,15 @@ LtxEngine uses a single apt-based Podman environment in GitHub Actions. The CI i
 
 * **Container isolation:** Builds do not depend on LaTeX packages installed on the runner host.
 
-* **Reusable Podman image cache:** CI saves the completed apt/TeX Live image and restores it on later runs. The cache key is derived from `Containerfile` and `installer.sh`, so package or image changes automatically trigger a clean rebuild.
+* **Reusable Podman image cache:** CI saves the completed apt/TeX Live image immediately after its dependency smoke test and restores it on later runs. The environment remains reusable even if a subsequent template build fails. The cache key is derived from `Containerfile` and `installer.sh`, so package or image changes automatically trigger a clean rebuild.
 
 * **Non-interactive execution:** apt uses non-interactive mode, the base image uses a fully qualified registry name, and each template build has an eight-minute timeout. No CI step requires a GUI or manual confirmation.
 
 * **Artifact output:** Generated PDFs are uploaded as the `pdf-assets-apt-podman` artifact.
 
 The first CI run still downloads and installs the complete TeX Live environment. Later runs load the cached image unless `Containerfile` or `installer.sh` changes. Template and build-script changes do not invalidate the environment cache because the repository is mounted into `/workspace` when compilation starts.
+
+The Podman image cache is Linux-specific. Windows uses a separate Scoop/MiKTeX installation: the installer preloads the templates' top-level packages and keeps automatic package installation enabled for transitive or future dependencies. A future Windows CI job should cache the applicable Scoop root plus `%LOCALAPPDATA%\MiKTeX` and `%APPDATA%\MiKTeX` for a user installation, or the corresponding `C:\ProgramData` directories for a global installation. It must not restore the Linux image archive. Linux CI also performs a smoke test for the required TeX packages and the Noto, TeX Gyre, and Latin Modern font families before compiling templates.
 
 ---
 

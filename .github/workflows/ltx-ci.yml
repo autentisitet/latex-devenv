@@ -242,12 +242,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
+      actions: read
+      contents: read
     steps:
+      - name: Create short-lived PDF bot token
+        id: pdf-bot-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ vars.PDF_BOT_APP_ID }}
+          private-key: ${{ secrets.PDF_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
       - name: Checkout main for PDF update
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: main
+          token: ${{ steps.pdf-bot-token.outputs.token }}
 
       - name: Download generated PDFs
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -257,8 +268,9 @@ jobs:
 
       - name: Commit generated PDFs to main
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          bot_name="${{ steps.pdf-bot-token.outputs.app-slug }}[bot]"
+          git config user.name "$bot_name"
+          git config user.email "$bot_name@users.noreply.github.com"
           git add -- \
             template/lab-report-template/main.pdf \
             template/paper-slides-template/main.pdf \

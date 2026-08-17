@@ -282,13 +282,13 @@ LtxEngine validates every template on both Windows/MiKTeX and Linux/Podman/TeX L
 
 * **Non-interactive execution:** apt uses non-interactive mode, MiKTeX disables user interaction and enables automatic package installation, and Windows CI skips SumatraPDF and all desktop GUI components. Linux template builds have an eight-minute limit; Windows setup and compilation steps have independent hard timeouts.
 
-* **Artifact and repository output:** Podman-generated PDFs are uploaded as the `pdf-assets-apt-podman` artifact. After both platform jobs pass, pushes to `main` commit changed Podman PDFs back through `github-actions[bot]`; PRs and manually dispatched runs never write to the repository.
+* **Artifact and repository output:** Podman-generated PDFs are uploaded as the `pdf-assets-apt-podman` artifact. After both platform jobs pass, pushes to `main` commit changed Podman PDFs through the dedicated `latex-devenv-pdf-bot` GitHub App; PRs and manually dispatched runs never write to the repository.
 
 The first CI run still downloads and installs the complete TeX Live environment. Later runs load the cached image unless `Containerfile` or `installer.sh` changes. Template and build-script changes do not invalidate the environment cache because the repository is mounted into `/workspace` when compilation starts.
 
-The PDF update commit contains `[skip ci]` to prevent recursive workflow runs. Repository settings must allow GitHub Actions to write repository contents, and branch protection rules must permit `github-actions[bot]` to push to `main`.
+The PDF update commit contains `[skip ci]` to prevent recursive workflow runs. Configure the App ID as the repository variable `PDF_BOT_APP_ID` and its private key as the `PDF_BOT_PRIVATE_KEY` Actions secret. The dedicated GitHub App must have repository-scoped `Contents: Read and write` permission and be the only automation actor allowed to bypass the `main` ruleset.
 
-For token safety, both build jobs have read-only repository access and check out code without persisting credentials. Only the separate PDF commit job receives `contents: write`, and it never executes repository build scripts. Official GitHub Actions are pinned to verified full commit SHAs. Pull requests may restore trusted `main` caches but cannot publish new cache entries or push generated files.
+For token safety, both build jobs have read-only repository access and check out code without persisting credentials. The separate PDF commit job also keeps its default `GITHUB_TOKEN` read-only; it creates a repository-scoped, short-lived GitHub App installation token only for checkout and push, and never executes repository build scripts. Official GitHub Actions are pinned to verified full commit SHAs. Pull requests may restore trusted `main` caches but cannot publish new cache entries or push generated files.
 
 The Windows job fetches only a verified Scoop installer commit and checks its exact SHA before execution. apt validates signed Ubuntu repository metadata, Scoop validates package hashes, and MiKTeX manages package metadata and checksums; the configured TUNA mirror uses HTTPS. The remaining external supply-chain boundary is the upstream Ubuntu, Scoop, MiKTeX, GitHub, and Docker Hub infrastructure; no long-lived repository token is exposed to either build job.
 

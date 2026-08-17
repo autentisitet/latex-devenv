@@ -160,7 +160,7 @@ Debian、Ubuntu、WSL 或 Podman：
 4. 两个平台分别编译三个模板，任意一边失败都会使 CI 失败。
 5. Windows PDF 只用于临时验证，runner 结束后丢弃。
 6. 仅上传 Podman 生成的 `pdf-assets-apt-podman` PDF 构建产物。
-7. 两个平台都通过后，对 `main` 的 push 构建，将 Podman 生成的 PDF 由 `github-actions[bot]` 自动提交回仓库；PR 和手动运行不会写入仓库。
+7. 两个平台都通过后，对 `main` 的 push 构建，将 Podman 生成的 PDF 由专用 `latex-devenv-pdf-bot` GitHub App 自动提交回仓库；PR 和手动运行不会写入仓库。
 
 这样本地 Podman 与 CI 使用完全相同的 apt 包列表，不依赖 runner 预装的 LaTeX 环境。
 
@@ -170,9 +170,9 @@ Podman 镜像缓存只适用于 Linux。Windows 使用独立的 Scoop/MiKTeX 环
 
 CI 全程不需要 GUI 或人工确认：apt 使用无交互模式；MiKTeX 禁止用户交互并启用宏包自动安装；Windows CI 明确跳过 SumatraPDF 和所有桌面组件。Linux 模板最多构建八分钟，Windows 安装和编译步骤也分别设置了硬超时，异常弹窗不会一直拖到整个 job 超时。
 
-自动生成的 PDF commit 会包含 `[skip ci]`，避免 bot 提交再次触发递归构建。仓库设置需要允许 GitHub Actions 写入 repository contents；如果 `main` 启用了分支保护，还需要允许 `github-actions[bot]` 推送。
+自动生成的 PDF commit 会包含 `[skip ci]`，避免 bot 提交再次触发递归构建。请将 App ID 配置为仓库变量 `PDF_BOT_APP_ID`，将私钥配置为 Actions secret `PDF_BOT_PRIVATE_KEY`。专用 GitHub App 只需要当前仓库的 `Contents: Read and write`，并应作为唯一允许绕过 `main` Ruleset 的自动化身份。
 
-为保护 token，两个构建 job 都只有仓库只读权限，并且 checkout 后不保留 Git 凭据。只有独立的 PDF 提交 job 拥有 `contents: write`，该 job 不执行仓库中的构建脚本。官方 GitHub Actions 均固定到已核验的完整 commit SHA。PR 可以读取 `main` 的可信缓存，但不能写入新缓存或推送生成文件。
+为保护 token，两个构建 job 都只有仓库只读权限，并且 checkout 后不保留 Git 凭据。独立的 PDF 提交 job 也将默认 `GITHUB_TOKEN` 保持为只读，只在 checkout 和 push 时生成限定到当前仓库的短期 GitHub App installation token，并且不执行仓库中的构建脚本。官方 GitHub Actions 均固定到已核验的完整 commit SHA。PR 可以读取 `main` 的可信缓存，但不能写入新缓存或推送生成文件。
 
 Windows job 只 fetch 已核验的 Scoop 安装器 commit，并在执行前比较完整 SHA。apt 会验证 Ubuntu 仓库签名，Scoop 会验证包哈希，MiKTeX 管理宏包元数据和校验信息，配置的 TUNA 镜像使用 HTTPS。剩余供应链边界是 Ubuntu、Scoop、MiKTeX、GitHub 和 Docker Hub 的上游基础设施；两个构建 job 都无法访问长期仓库 token。
 

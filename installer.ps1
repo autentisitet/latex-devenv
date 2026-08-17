@@ -110,8 +110,9 @@ if (-not (Get-Command scoop -ErrorAction SilentlyContinue)){
     Write-Host "[!] ERROR: Scoop is not detected on your system." -ForegroundColor Red
     Write-Host "This script uses Scoop to manage LaTeX components gracefully."
     Write-Host ""
-    Write-Host "To install Scoop, run the following command in PowerShell:" -ForegroundColor White
-    Write-Host "irm get.scoop.sh | iex" -ForegroundColor Cyan
+    Write-Host "Download and inspect Scoop's installer before running it:" -ForegroundColor White
+    Write-Host "Invoke-WebRequest https://get.scoop.sh -OutFile install-scoop.ps1" -ForegroundColor Cyan
+    Write-Host "Get-Content .\install-scoop.ps1; .\install-scoop.ps1" -ForegroundColor Cyan
     exit 1
 }
 

@@ -81,20 +81,26 @@ Suitable for rapid environment setup without local repository persistence.
 * Windows (PowerShell Admin):
 
 ```Powershell
-# For international users
-irm https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.ps1 | iex
-# For users in China (Enables TUNA mirror)
-$script = irm https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.ps1
-& ([scriptblock]::Create($script)) -Mirror
+# Download first so the script can be inspected before execution.
+Invoke-WebRequest https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.ps1 -OutFile installer.ps1
+Get-Content .\installer.ps1
+.\installer.ps1
+
+# For users in China (enables the TUNA mirror)
+.\installer.ps1 -Mirror
 ```
 
 * Debian / Ubuntu / WSL (Bash):
 
 ```Bash
-# For international users
-curl -sSL https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.sh | bash
-# For users in China (Enables TUNA mirror)
-curl -sSL https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.sh | bash -s -- --mirror
+# Download first so the script can be inspected before execution.
+curl --fail --location --output installer.sh \
+  https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.sh
+less installer.sh
+bash installer.sh
+
+# For users in China (enables the TUNA mirror)
+bash installer.sh --mirror
 ```
 
 > [!IMPORTANT]
@@ -279,6 +285,8 @@ LtxEngine uses a single apt-based Podman environment in GitHub Actions. The CI i
 The first CI run still downloads and installs the complete TeX Live environment. Later runs load the cached image unless `Containerfile` or `installer.sh` changes. Template and build-script changes do not invalidate the environment cache because the repository is mounted into `/workspace` when compilation starts.
 
 The PDF update commit contains `[skip ci]` to prevent recursive workflow runs. Repository settings must allow GitHub Actions to write repository contents, and branch protection rules must permit `github-actions[bot]` to push to `main`.
+
+For token safety, the build job has read-only repository access and checks out code without persisting credentials. Only the separate PDF commit job receives `contents: write`, and it never executes repository build scripts. Official GitHub Actions are pinned to verified full commit SHAs. Pull requests may restore the trusted `main` image cache but cannot publish new cache entries or push generated files.
 
 The Podman image cache is Linux-specific. Windows uses a separate Scoop/MiKTeX installation: the installer preloads the templates' top-level packages and keeps automatic package installation enabled for transitive or future dependencies. A future Windows CI job should cache the applicable Scoop root plus `%LOCALAPPDATA%\MiKTeX` and `%APPDATA%\MiKTeX` for a user installation, or the corresponding `C:\ProgramData` directories for a global installation. It must not restore the Linux image archive. Linux CI also performs a smoke test for the required TeX packages and the Noto, TeX Gyre, and Latin Modern font families before compiling templates.
 

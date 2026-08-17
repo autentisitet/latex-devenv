@@ -12,7 +12,7 @@ env:
   CONTINUOUS_INTEGRATION: true
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,9 +23,13 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Install Podman with apt
         run: |
@@ -34,7 +38,7 @@ jobs:
 
       - name: Restore Podman apt image cache
         id: podman-image-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ~/.cache/latex-devenv/latex-devenv-ci.tar
           key: latex-devenv-podman-${{ runner.os }}-${{ hashFiles('Containerfile', 'installer.sh') }}
@@ -83,14 +87,14 @@ jobs:
           '
 
       - name: Save Podman image for later CI runs
-        if: steps.podman-image-cache.outputs.cache-hit != 'true'
+        if: steps.podman-image-cache.outputs.cache-hit != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           mkdir -p ~/.cache/latex-devenv
           podman save --output ~/.cache/latex-devenv/latex-devenv-ci.tar latex-devenv:ci
 
       - name: Store Podman apt image cache immediately
-        if: steps.podman-image-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        if: steps.podman-image-cache.outputs.cache-hit != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ~/.cache/latex-devenv/latex-devenv-ci.tar
           key: latex-devenv-podman-${{ runner.os }}-${{ hashFiles('Containerfile', 'installer.sh') }}
@@ -113,14 +117,35 @@ jobs:
             '
 
       - name: Archive PDF artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pdf-assets-apt-podman
-          path: "**/*.pdf"
+          path: |
+            template/lab-report-template/main.pdf
+            template/paper-slides-template/main.pdf
+            template/ppt-template/main.pdf
           if-no-files-found: error
 
+  commit-generated-pdfs:
+    needs: build-apt-container
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main for PDF update
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+
+      - name: Download generated PDFs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: pdf-assets-apt-podman
+          path: .
+
       - name: Commit generated PDFs to main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

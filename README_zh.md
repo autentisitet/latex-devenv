@@ -49,7 +49,9 @@ MiKTeX 会在首次编译时下载缺少的 LaTeX 包，因此 Windows 环境需
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-irm get.scoop.sh | iex
+Invoke-WebRequest https://get.scoop.sh -OutFile install-scoop.ps1
+Get-Content .\install-scoop.ps1
+.\install-scoop.ps1
 ```
 
 然后安装 LaTeX 环境：
@@ -169,6 +171,8 @@ Podman 镜像缓存只适用于 Linux。Windows 使用独立的 Scoop/MiKTeX 环
 CI 全程不需要 GUI 或人工确认：apt 使用无交互模式，基础镜像使用完整 registry 地址避免 Podman 弹出镜像源选择，每个模板最多构建八分钟，异常时会直接失败而不是等待整个 job 超时。
 
 自动生成的 PDF commit 会包含 `[skip ci]`，避免 bot 提交再次触发递归构建。仓库设置需要允许 GitHub Actions 写入 repository contents；如果 `main` 启用了分支保护，还需要允许 `github-actions[bot]` 推送。
+
+为保护 token，构建 job 只有仓库只读权限，并且 checkout 后不保留 Git 凭据。只有独立的 PDF 提交 job 拥有 `contents: write`，该 job 不执行仓库中的构建脚本。官方 GitHub Actions 均固定到已核验的完整 commit SHA。PR 可以读取 `main` 的可信镜像缓存，但不能写入新缓存或推送生成文件。
 
 ---
 

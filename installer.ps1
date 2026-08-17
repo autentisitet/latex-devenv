@@ -171,6 +171,8 @@ $LtxEngine = @(
 )
 if ($env:GITHUB_ACTIONS -ne 'true') {
     $LtxEngine += @{ Cmd = 'SumatraPDF'; Pkg = 'sumatrapdf' }
+} else {
+    Write-Host "[CI] Skipping SumatraPDF and all desktop GUI components." -ForegroundColor Gray
 }
 foreach ($Item in $LtxEngine){
     $Command = $Item.Cmd

@@ -126,8 +126,118 @@ jobs:
             template/ppt-template/main.pdf
           if-no-files-found: error
 
+  build-windows:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Restore Windows MiKTeX cache
+        id: windows-miktex-cache
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/scoop
+            ~/AppData/Local/MiKTeX
+            ~/AppData/Roaming/MiKTeX
+          key: latex-devenv-miktex-${{ runner.os }}-b0ee913-${{ hashFiles('installer.ps1') }}
+
+      - name: Bootstrap pinned Scoop installer
+        if: steps.windows-miktex-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $installRoot = Join-Path $env:RUNNER_TEMP 'scoop-install'
+          $expectedCommit = 'b0ee913725139b816f9178163af0aecdba07a7ed'
+          New-Item -ItemType Directory -Path $installRoot | Out-Null
+          git -C $installRoot init
+          git -C $installRoot remote add origin https://github.com/ScoopInstaller/Install.git
+          git -C $installRoot fetch --depth=1 origin $expectedCommit
+          git -C $installRoot checkout --detach FETCH_HEAD
+          $actualCommit = git -C $installRoot rev-parse HEAD
+          if ($actualCommit -ne $expectedCommit) {
+              throw "Unexpected Scoop installer commit: $actualCommit"
+          }
+
+          $isAdministrator = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+              [Security.Principal.WindowsBuiltInRole]::Administrator
+          )
+          if ($isAdministrator) {
+              & (Join-Path $installRoot 'install.ps1') -RunAsAdmin
+          } else {
+              & (Join-Path $installRoot 'install.ps1')
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Scoop installation failed with exit code $LASTEXITCODE" }
+
+      - name: Configure Scoop PATH
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $scoopShims = Join-Path $env:USERPROFILE 'scoop\shims'
+          if (!(Test-Path $scoopShims)) { throw "Scoop shims were not found: $scoopShims" }
+          $env:PATH = "$scoopShims;$env:PATH"
+          $scoopShims | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          scoop --version
+
+      - name: Install Windows MiKTeX environment
+        if: steps.windows-miktex-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        timeout-minutes: 25
+        run: .\installer.ps1
+
+      - name: Verify Windows LaTeX dependencies
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          foreach ($commandName in @('xelatex', 'latexmk', 'kpsewhich')) {
+              if (!(Get-Command $commandName -ErrorAction SilentlyContinue)) {
+                  throw "Required command was not found: $commandName"
+              }
+              Write-Host "[OK] command: $commandName"
+          }
+
+          foreach ($texFile in @('ctex.sty', 'tcolorbox.sty', 'breqn.sty', 'pgfplots.sty', 'unicode-math.sty')) {
+              $resolvedPath = & kpsewhich $texFile
+              if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($resolvedPath)) {
+                  throw "Required TeX package was not found: $texFile"
+              }
+              Write-Host "[OK] TeX package: $texFile -> $resolvedPath"
+          }
+
+      - name: Store Windows MiKTeX cache
+        if: steps.windows-miktex-cache.outputs.cache-hit != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/scoop
+            ~/AppData/Local/MiKTeX
+            ~/AppData/Roaming/MiKTeX
+          key: latex-devenv-miktex-${{ runner.os }}-b0ee913-${{ hashFiles('installer.ps1') }}
+
+      - name: Compile templates on Windows for verification
+        shell: pwsh
+        timeout-minutes: 15
+        run: |
+          $templates = @(
+              'template\lab-report-template\main.tex',
+              'template\paper-slides-template\main.tex',
+              'template\ppt-template\main.tex'
+          )
+          foreach ($template in $templates) {
+              Write-Host "::group::Windows build: $template"
+              & pwsh -NoProfile -File .\ltx-build.ps1 -Template $template -Clean
+              if ($LASTEXITCODE -ne 0) { throw "Windows build failed: $template" }
+              Write-Host '::endgroup::'
+          }
+
   commit-generated-pdfs:
-    needs: build-apt-container
+    needs: [build-apt-container, build-windows]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5

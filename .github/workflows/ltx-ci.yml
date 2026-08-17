@@ -1,308 +1,74 @@
-name: LtxEngine CI/CD
+name: LtxEngine CI
 
 on:
   push:
-    branches: [ "main" ]
-    tags: [ "v*" ]  # Trigger Release
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
   workflow_dispatch:
 
-
-
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CI: true
   CONTINUOUS_INTEGRATION: true
-
-
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-
-
 jobs:
-  # ------------------------------------------
-  # --- Task 1: Ubuntu Compilation and Script Auditing ---
-  # ------------------------------------------
-  build-ubuntu:
+  build-apt-container:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      DEBIAN_FRONTEND: noninteractive
-      TZ: UTC
-      LC_ALL: C.UTF-8
-      LANG: C.UTF-8
+    timeout-minutes: 30
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          clean: true
 
-      - name: Cache TeX Live
+      - name: Install Podman with apt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      - name: Restore Podman apt image cache
+        id: podman-image-cache
         uses: actions/cache@v4
         with:
-          path: ~/texlive
-          key: ${{ runner.os }}-texlive-${{ hashFiles('installer.sh') }}
-          restore-keys: ${{ runner.os }}-texlive-
+          path: ~/.cache/latex-devenv/latex-devenv-ci.tar
+          key: latex-devenv-podman-${{ runner.os }}-${{ hashFiles('Containerfile', 'installer.sh') }}
 
-      - name: Setup LaTeX Environment (Ubuntu)
+      - name: Load cached Podman image
+        if: steps.podman-image-cache.outputs.cache-hit == 'true'
+        run: podman load --input ~/.cache/latex-devenv/latex-devenv-ci.tar
+
+      - name: Build apt environment with Podman
+        if: steps.podman-image-cache.outputs.cache-hit != 'true'
+        run: podman build --tag latex-devenv:ci --file Containerfile .
+
+      - name: Save Podman image for later CI runs
+        if: steps.podman-image-cache.outputs.cache-hit != 'true'
         run: |
-          chmod +x ./installer.sh
-          ./installer.sh
+          mkdir -p ~/.cache/latex-devenv
+          podman save --output ~/.cache/latex-devenv/latex-devenv-ci.tar latex-devenv:ci
 
-
-      - name: Execute Build Engine (.sh)
+      - name: Build LaTeX templates in the container
         run: |
-          chmod +x ./ltx-build.sh
-          declare -a templates=(
-            "template/lab-report-template/main.tex"
-            "template/paper-slides-template/main.tex"
-            "template/ppt-template/main.tex"
-          )
+          podman run --rm \
+            --volume "${PWD}:/workspace:Z" \
+            --workdir /workspace \
+            latex-devenv:ci \
+            bash -lc '
+              set -e
+              for template in \
+                template/lab-report-template/main.tex \
+                template/paper-slides-template/main.tex \
+                template/ppt-template/main.tex
+              do
+                ./ltx-build.sh "$template" --clean
+              done
+            '
 
-          for template in "${templates[@]}"; do
-            echo "::group::Building $template"
-            ./ltx-build.sh "$template" --clean
-            echo "::endgroup::"
-          done
-
-
-      - name: Archive Ubuntu Artifacts
+      - name: Archive PDF artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pdf-assets-ubuntu
+          name: pdf-assets-apt-podman
           path: "**/*.pdf"
           if-no-files-found: error
-
-
-  # ------------------------------------------
-  # --- Task 2: Windows Environment Script Verification ---
-  # ------------------------------------------
-  build-windows:
-    runs-on: windows-latest
-    timeout-minutes: 15
-    env:
-      SCOOP_NONINTERACTIVE: true
-      CHOCOLATEY_NONINTERACTIVE: true
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          clean: true
-
-      - name: Cache Scoop Packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            C:\Users\runneradmin\scoop
-            ~/.scoop
-          key: ${{ runner.os }}-scoop-${{ hashFiles('installer.ps1') }}
-          restore-keys: |
-            ${{ runner.os }}-scoop-
-
-
-      - name: Cache MiKTeX Data
-        uses: actions/cache@v4
-        with:
-          path: |
-            C:\Users\runneradmin\AppData\Local\MiKTeX
-            C:\Users\runneradmin\AppData\Roaming\MiKTeX
-          key: ${{ runner.os }}-miktex-data-${{ hashFiles('installer.ps1') }}
-          restore-keys: |
-            ${{ runner.os }}-miktex-data-
-
-
-      - name: Setup LaTeX Environment (Windows)
-        shell: pwsh
-        run: |
-          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-          if (!(Test-Path "$env:USERPROFILE\scoop")) {
-              irm get.scoop.sh | iex
-          }
-          "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Append
-          "$env:USERPROFILE\scoop\apps\scoop\current\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-
-          .\installer.ps1 -ScoopGlobal -MpmGlobal
-
-
-      - name: Execute Build Engine (.ps1)
-        shell: pwsh
-        run: |
-          $templates = @(
-            "template\lab-report-template\main.tex"
-            "template\paper-slides-template\main.tex"
-            "template\ppt-template\main.tex"
-          )
-
-          foreach ($template in $templates) {
-            Write-Host "::group::Building $template"
-            .\ltx-build.ps1 -Template $template -Clean
-            Write-Host "::endgroup::"
-          }
-
-
-      - name: Archive Windows Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdf-assets-windows
-          path: "**/*.pdf"
-          if-no-files-found: error
-
-
-
-  # ------------------------------------------
-  # --- Task 3: macOS Compilation and Script Auditing ---
-  # ------------------------------------------
-  build-macos:
-    runs-on: macos-latest
-    timeout-minutes: 15
-    env:
-      HOMEBREW_NO_INSTALL_CLEANUP: true
-      HOMEBREW_NO_ANALYTICS: true
-      HOMEBREW_NO_AUTO_UPDATE: true
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          clean: true
-
-      - name: Cache TeX Live (macOS)
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/texlive
-          key: ${{ runner.os }}-texlive-${{ hashFiles('installer.sh') }}
-          restore-keys: ${{ runner.os }}-texlive-
-
-      - name: Setup LaTeX Environment (macOS)
-        run: |
-          chmod +x ./installer.sh
-          ./installer.sh
-
-      - name: Execute Build Engine (.sh)
-        run: |
-          chmod +x ./ltx-build.sh
-          declare -a templates=(
-            "template/lab-report-template/main.tex"
-            "template/paper-slides-template/main.tex"
-            "template/ppt-template/main.tex"
-          )
-
-          for template in "${templates[@]}"; do
-            echo "::group::Building $template"
-            ./ltx-build.sh "$template" --clean
-            echo "::endgroup::"
-          done
-
-      - name: Archive macOS Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdf-assets-macos
-          path: "**/*.pdf"
-          if-no-files-found: error
-
-
-
-  # ------------------------------------------
-  # --- Task 4: Arch Linux Compilation and Script Auditing ---
-  # ------------------------------------------
-  build-arch:
-    runs-on: ubuntu-latest
-    container: archlinux:latest
-    timeout-minutes: 15
-    env:
-      LC_ALL: C.UTF-8
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          clean: true
-
-      - name: Cache TeX Live (Arch)
-        uses: actions/cache@v4
-        with:
-          path: /root/.texlive
-          key: ${{ runner.os }}-arch-texlive-${{ hashFiles('installer.sh') }}
-          restore-keys: ${{ runner.os }}-arch-texlive-
-
-      - name: Install base tools
-        run: |
-          pacman -Syu --noconfirm --needed git base-devel
-
-      - name: Setup LaTeX Environment (Arch)
-        run: |
-          pacman -Syu --noconfirm
-          chmod +x ./installer.sh
-          ./installer.sh
-
-
-      - name: Execute Build Engine (.sh)
-        run: |
-          chmod +x ./ltx-build.sh
-          declare -a templates=(
-            "template/lab-report-template/main.tex"
-            "template/paper-slides-template/main.tex"
-            "template/ppt-template/main.tex"
-          )
-
-          for template in "${templates[@]}"; do
-            echo "::group::Building $template"
-            ./ltx-build.sh "$template" --clean
-            echo "::endgroup::"
-          done
-
-
-      - name: Archive Arch Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdf-assets-arch
-          path: "**/*.pdf"
-          if-no-files-found: error
-
-
-  # ------------------------------------------
-  # --- Task 5: Automated Delivery (GitHub Release) ---
-  # ------------------------------------------
-  release:
-    needs: [build-ubuntu, build-windows, build-macos, build-arch]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/          # Download to unified directory
-
-      - name: Organize Release Files
-        run: |
-          mkdir -p release-assets
-          find artifacts/ -name "*.pdf" | while read -r file; do
-            platform_full=$(echo "$file" | cut -d'/' -f2)
-            platform=${platform_full#pdf-assets-}
-
-            template=$(basename $(dirname "$file"))
-            cp "$file" "release-assets/${template}-${platform}.pdf"
-          done
-          COUNT=$(ls release-assets/ | wc -l)
-          echo "Total assets PDF files collected: $COUNT"
-          ls -lh release-assets/
-          if [ "$COUNT" -eq 0 ]; then
-            echo "::error::No PDF files were generated. Aborting release."
-            exit 1
-          fi
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "LaTeX Release ${{ github.ref_name }}"
-          body: |
-            ## 📄 Compiled LaTeX Documents
-
-            This release contains PDFs built across Ubuntu, Windows, macOS and Arch environments.
-          files: "release-assets/*.pdf"
-          generate_release_notes: true
-          fail_on_unmatched_files: true

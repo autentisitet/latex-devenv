@@ -1,0 +1,7 @@
+.git
+.github
+**/*.aux
+**/*.log
+**/*.out
+**/*.pdf
+**/*.synctex.gz

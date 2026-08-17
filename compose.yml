@@ -1,0 +1,12 @@
+services:
+  latex:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: localhost/latex-devenv:apt
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:Z
+    stdin_open: true
+    tty: true
+    command: sleep infinity

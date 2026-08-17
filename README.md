@@ -1,9 +1,11 @@
 # latex-devenv
 
+[English](README.md) | [简体中文](README_zh.md)
+
 [![CI/CD Status](https://github.com/autentisitet/latex-devenv/actions/workflows/ltx-ci.yml/badge.svg)](https://github.com/autentisitet/latex-devenv/actions)
 [![GitHub release](https://img.shields.io/github/v/release/autentisitet/latex-devenv?include_prereleases)](https://github.com/autentisitet/latex-devenv/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/autentisitet/latex-devenv)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Debian%2FUbuntu%20%7C%20Podman-blue)](https://github.com/autentisitet/latex-devenv)
 [![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
 [![Version](https://img.shields.io/badge/version-0.4.0--beta-blue.svg)](https://github.com/autentisitet/latex-devenv)
 
@@ -48,7 +50,7 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 
 ## 🔍 Architecture & Design Decisions <a id="architecture-decisions"></a>
 
-* **Hybrid Toolchain Orchestration** – The suite abstracts distribution-specific differences, implementing MiKTeX JIT logic on Windows for storage efficiency and TeX Live on Unix/WSL for environment consistency.
+* **Focused Toolchain Orchestration** – PowerShell retains MiKTeX support on Windows, while Bash and CI use one Debian/Ubuntu apt-based TeX Live environment.
 
 * **Deterministic Build Pipeline** – Implements an idempotent atomic state machine. The multi-pass compilation logic guarantees that auxiliary data (`TOC`, `TikZ`, `Cross-references`) is correctly synchronized without manual intervention.
 
@@ -60,7 +62,7 @@ This suite optimizes LaTeX environment deployment by abstracting the complexitie
 
 * **Deep Workspace Decoupling** – Implements a strict separation between source logic (`.tex`, `.sty`) and transient metadata (`.aux`, `.log`), enforced via industrial-standard `.gitignore` patterns.
 
-* **Fine-Grained Privilege Separation** – Implements dual-layer sudo logic (`APP_SUDO` for package managers, `ADMIN_SUDO` for system-level operations). This ensures minimal privilege escalation while maintaining compatibility across Linux (requires sudo), macOS (selective sudo), and containerized environments (no sudo needed).
+* **Container Parity** – Local Podman and GitHub Actions both build from the same Ubuntu `Containerfile`, so they receive the same apt packages.
 
 * **CI/CD Log Optimization** – Implements smart log grouping (`::group::` / `::endgroup::`) with nested hierarchy support. Critical phases (dependency audit, compilation passes, result validation) are automatically foldable in GitHub Actions, dramatically reducing CI log noise while preserving full debugging capability.
 
@@ -86,7 +88,7 @@ $script = irm https://raw.githubusercontent.com/autentisitet/latex-devenv/main/i
 & ([scriptblock]::Create($script)) -Mirror
 ```
 
-* Linux / macOS / WSL (Bash):
+* Debian / Ubuntu / WSL (Bash):
 
 ```Bash
 # For international users
@@ -102,8 +104,6 @@ curl -sSL https://raw.githubusercontent.com/autentisitet/latex-devenv/main/insta
 | Environment | Mirror Source | Injection Mechanism | Restoration / Persistence |
 | :--- | :--- | :--- | :--- |
 | **Ubuntu / WSL** | TUNA (Tsinghua) | Temporary `/tmp/tuna_sources.list` via `-o Dir::Etc::SourceList` | **Atomic**: Temporary config is deleted immediately after execution. |
-| **macOS** | TUNA (Tsinghua) | On-the-fly `--repository` flag passed to `tlmgr` | **Stateless**: Global `tlmgr` settings remain untouched. |
-| **Arch Linux** | TUNA (Tsinghua) | Prioritized entry in a temporary `pacman.conf` | **Clean**: The original `mirrorlist` is never modified. |
 
 **Repository Integration (Development)**
 Recommended for full access to internal build engines and template structures.
@@ -116,13 +116,20 @@ cd latex-devenv
 powershell -ExecutionPolicy Bypass -File .\installer.ps1
 ```
 
-* Linux / macOS / WSL (Bash):
+* Debian / Ubuntu / WSL (Bash):
 
 ```Bash
 git clone https://github.com/autentisitet/latex-devenv.git
 cd latex-devenv
 chmod +x installer.sh
 ./installer.sh
+```
+
+* Podman (same apt environment as CI):
+
+```bash
+podman compose up -d --build
+podman compose exec latex bash
 ```
 
 ### 2. Atomic Build Execution
@@ -136,7 +143,7 @@ cd latex-devenv
 powershell -ExecutionPolicy Bypass -File .\ltx-build.ps1 -Template ".\template\lab-report-template\main.tex" -Clean
 ```
 
-* Linux / macOS / WSL
+* Debian / Ubuntu / WSL
 
 ```bash
 cd latex-devenv
@@ -172,7 +179,7 @@ The `installer` script supports the following parameters for environment customi
 
 **Logic Parameters:**
 
-| Function | PowerShell (Windows) | Bash (Linux/macOS) | Description |
+| Function | PowerShell (Windows) | Bash (Debian/Ubuntu/WSL) | Description |
 | :--- | :--- | :--- | :--- |
 | **Entry Point** | `-Template` or `Pos 0` | `$1` | Defines the entry point (Defaults to `main.tex`) |
 | **Cleanup** | `-Clean` or `-c` | `-c` or `--clean` | Purges 20+ transient auxiliary extensions before building |
@@ -254,17 +261,19 @@ git clean -fdX
 
 ## 🚀 CI/CD Integration <a id="cicd"></a>
 
-LtxEngine features a **four-platform** CI/CD pipeline via GitHub Actions. Every push or tag triggers an atomic build process on **Ubuntu, Windows, macOS, and Arch Linux** Server environments to ensure 100% template compatibility.
+LtxEngine uses a single apt-based Podman environment in GitHub Actions. The CI image is built from `Containerfile`, then all templates are compiled inside that image.
 
 **Key Infrastructure Features:**
 
-* **Multi-Platform Audit:** Validates installer.sh on Linux (TeX Live) and installer.ps1 on Windows (MiKTeX) simultaneously.
+* **Environment parity:** CI and local Podman use the same Ubuntu apt packages.
 
-* **Intelligent Caching:** Implements multi-layer caching for TeX Live packages and MiKTeX JIT data.
+* **Container isolation:** Builds do not depend on LaTeX packages installed on the runner host.
 
-* **Automated Release:** When a version tag (e.g., v1.0.0) is pushed, the engine automatically aggregates compiled PDFs from all platforms and creates a GitHub Release.
+* **Reusable Podman image cache:** CI saves the completed apt/TeX Live image and restores it on later runs. The cache key is derived from `Containerfile` and `installer.sh`, so package or image changes automatically trigger a clean rebuild.
 
-* **Smart Log Grouping:** GitHub Actions logs are organized into nested foldable groups, making CI output readable and debuggable.
+* **Artifact output:** Generated PDFs are uploaded as the `pdf-assets-apt-podman` artifact.
+
+The first CI run still downloads and installs the complete TeX Live environment. Later runs load the cached image unless `Containerfile` or `installer.sh` changes. Template and build-script changes do not invalidate the environment cache because the repository is mounted into `/workspace` when compilation starts.
 
 ---
 
@@ -272,6 +281,6 @@ LtxEngine features a **four-platform** CI/CD pipeline via GitHub Actions. Every 
 
 * **Author**: [@autentisitet](https://github.com/autentisitet)
 * **Compiler**: XeLaTeX (Primary Engine)
-* **Distribution**: MiKTeX(Windows) / TeX Live(Unix)
+* **Distribution**: MiKTeX (Windows) / TeX Live (Debian, Ubuntu, WSL and Podman)
 * **Version**: 0.4.0-beta (pre-release)
 * **License**: [MIT](LICENSE)

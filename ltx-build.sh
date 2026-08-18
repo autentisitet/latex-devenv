@@ -63,7 +63,7 @@ printf "\033[0;35m========================================\033[0m\n"
 # 2. Dependency Audit (Scanning \usepackage and \RequirePackage)
 if command -v kpsewhich >/dev/null 2>&1; then
     group "Dependency audit"
-    missing=$(grep -Eho '\\(usepackage|RequirePackage)(\[[^]]*\])?\{[^}]+\}' "$TEMPLATE" 2>/dev/null | \
+    missing=$({ grep -Eho '\\(usepackage|RequirePackage)(\[[^]]*\])?\{[^}]+\}' "$TEMPLATE" 2>/dev/null || true; } | \
               sed -E 's/\\(usepackage|RequirePackage)(\[[^]]*\])?\{([^}]+)\}/\3/' | \
               tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sort -u | \
               while read -r pkg; do

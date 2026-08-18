@@ -1,7 +1,28 @@
+# Repository metadata and files not copied by Containerfile.
 .git
 .github
+.gitignore
+.gitattributes
+.markdownlint.json
+.markdownlintignore
+compose.yml
+LICENSE
+README.md
+README_zh.md
+installer.ps1
+
+# Generated LaTeX artifacts.
+**/*.pdf
 **/*.aux
 **/*.log
+**/*.toc
+**/*.lof
+**/*.lot
 **/*.out
-**/*.pdf
+**/*.bbl
+**/*.blg
+**/*.bcf
+**/*.run.xml
+**/*.fdb_latexmk
+**/*.fls
 **/*.synctex.gz

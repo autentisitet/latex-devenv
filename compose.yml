@@ -3,10 +3,9 @@ services:
     build:
       context: .
       dockerfile: Containerfile
-    image: localhost/latex-devenv:apt
     working_dir: /workspace
     volumes:
-      - .:/workspace:Z
+      - ./template:/workspace/template
     stdin_open: true
     tty: true
     command: sleep infinity

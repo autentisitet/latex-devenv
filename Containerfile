@@ -7,13 +7,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR /workspace
 
-COPY installer.sh /tmp/installer.sh
-RUN chmod +x /tmp/installer.sh \
-    && /tmp/installer.sh \
+COPY installer.sh ltx-build.sh ./
+RUN chmod +x installer.sh \
+    && ./installer.sh \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/installer.sh
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . /workspace
-RUN chmod +x /workspace/ltx-build.sh
+COPY template/ ./template/
+RUN chmod +x ./ltx-build.sh
 
 CMD ["bash"]

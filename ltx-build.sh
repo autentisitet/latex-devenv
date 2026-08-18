@@ -4,10 +4,10 @@
 # Optimized for LaTeX template repositories and CI/CD pipelines.
 
 # Default values
-set -e
+set -euo pipefail
 
 # GitHub Actions grouping helpers
-if [ "$GITHUB_ACTIONS" = "true" ]; then
+if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
     group() { echo "::group::$1"; }
     endgroup() { echo "::endgroup::"; }
 else
@@ -18,6 +18,7 @@ fi
 
 TEMPLATE="main.tex"
 CLEAN=0
+TEMPLATE_SET=0
 
 # Usage information
 show_help() {
@@ -35,9 +36,19 @@ while [[ "$#" -gt 0 ]]; do
             printf "\033[0;31m[!] Unknown option: %s\033[0m\n" "$1" >&2
             exit 1 ;;
         *)
-            TEMPLATE="$1"; shift ;;
+            if [ "$TEMPLATE_SET" -eq 1 ]; then
+                printf "\033[0;31m[!] Error: multiple template paths were provided\033[0m\n" >&2
+                exit 1
+            fi
+            TEMPLATE="$1"
+            TEMPLATE_SET=1
+            shift ;;
     esac
 done
+
+if [ "$TEMPLATE" = "main.tex" ] && [ ! -f "$TEMPLATE" ] && [ -f "template/lab-report-template/main.tex" ]; then
+    TEMPLATE="template/lab-report-template/main.tex"
+fi
 
 # 1. Environment & Path Audit
 group "Environment & Path Audit"
@@ -60,7 +71,6 @@ if command -v kpsewhich >/dev/null 2>&1; then
                   kpsewhich "${pkg}.sty" >/dev/null 2>&1 || kpsewhich "${pkg}.cls" >/dev/null 2>&1 || echo "$pkg"
               done | tr '\n' ' ')
     [ -n "$missing" ] && printf "\033[1;33m[!] Missing assets: %s (add the corresponding apt packages)\033[0m\n" "$missing"
-    endgroup
 fi
 endgroup
 

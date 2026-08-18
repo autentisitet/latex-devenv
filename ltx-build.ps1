@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     LaTeX Build Engine - Optimized for template library.
 
@@ -48,6 +48,10 @@ if ($env:GITHUB_ACTIONS -eq 'true') {
 
 
 
+if ($Template -eq "main.tex" -and -not (Test-Path $Template) -and (Test-Path ".\template\lab-report-template\main.tex")) {
+    $Template = ".\template\lab-report-template\main.tex"
+}
+
 # ---------------------------------------------------------
 # 1. Visual header (always visible, useful for CI log search)
 # ---------------------------------------------------------
@@ -63,6 +67,11 @@ if (-not (Test-Path $Template)) {
 }
 
 # Check compiler
+if (-not (Get-Command kpsewhich -ErrorAction SilentlyContinue)) {
+    Write-Error "kpsewhich is not ready. Please ensure MiKTeX or TeX Live is added to PATH."
+    exit 1
+}
+
 if (-not (Get-Command xelatex -ErrorAction SilentlyContinue)) {
     Write-Error "xelatex is not ready. Please ensure MiKTeX or TeX Live is added to PATH."
     Write-Host "Recommend installing via Scoop: scoop install miktex" -ForegroundColor Yellow

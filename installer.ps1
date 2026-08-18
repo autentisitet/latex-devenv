@@ -294,12 +294,12 @@ Githubendgroup
 # 6. Verification
 Githubgroup "Verifying installation"
 Write-Host "Verifying installation..." -ForegroundColor Cyan
-if (Get-Command latexmk -ErrorAction SilentlyContinue) {
-    & latexmk -v
+$latexmkCommand = Get-Command latexmk -ErrorAction SilentlyContinue
+if ($latexmkCommand) {
+    Write-Host "latexmk is available at: $($latexmkCommand.Source)" -ForegroundColor Gray
+    $global:LASTEXITCODE = 0
     Write-Host "MiKTeX setup completed successfully! Packages will auto-install on first use." -ForegroundColor Green
-}
-else {
-    Write-Warning "MiKTeX initialized, but 'latexmk' is not accessible in this process."
-    Write-Warning "Please try: 1. Restart Terminal  2. Run 'scoop install miktex' again if missing."
+} else {
+    throw "MiKTeX was initialized, but latexmk was not found in PATH."
 }
 Githubendgroup

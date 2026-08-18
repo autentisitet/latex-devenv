@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Debian%2FUbuntu%20%7C%20Podman-blue)](https://github.com/autentisitet/latex-devenv)
 [![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
-[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/autentisitet/latex-devenv)
+[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/autentisitet/latex-devenv)
 
 **A cross-platform automation suite for on-premises LaTeX workflows.**
 
@@ -81,8 +81,8 @@ Suitable for rapid environment setup without local repository persistence.
 * Windows (PowerShell Admin):
 
 ```Powershell
-# Download first so the script can be inspected before execution.
-Invoke-WebRequest https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.ps1 -OutFile installer.ps1
+# Download the pinned revision, then inspect it before execution.
+Invoke-WebRequest https://raw.githubusercontent.com/autentisitet/latex-devenv/b400837586bdce4edbead3a37d414f98663f31cd/installer.ps1 -OutFile installer.ps1
 Get-Content .\installer.ps1
 .\installer.ps1
 
@@ -93,9 +93,9 @@ Get-Content .\installer.ps1
 * Debian / Ubuntu / WSL (Bash):
 
 ```Bash
-# Download first so the script can be inspected before execution.
+# Download the pinned revision, then inspect it before execution.
 curl --fail --location --output installer.sh \
-  https://raw.githubusercontent.com/autentisitet/latex-devenv/main/installer.sh
+  https://raw.githubusercontent.com/autentisitet/latex-devenv/b400837586bdce4edbead3a37d414f98663f31cd/installer.sh
 less installer.sh
 bash installer.sh
 
@@ -138,6 +138,62 @@ podman compose up -d --build
 podman compose exec latex bash
 ```
 
+The container performs the LaTeX compilation. Only the template directory is bind-mounted, so template edits and generated PDFs stay on the host while XeLaTeX and the build script run inside the image.
+
+Stop the service:
+
+```bash
+podman compose down
+```
+
+Remove Compose-created orphan containers if necessary:
+
+```bash
+podman compose down --remove-orphans
+```
+
+List the Compose image:
+
+```bash
+podman compose images
+```
+
+Remove it by image ID after checking the list:
+
+```bash
+podman image rm <image-id>
+```
+
+Standalone run on Linux, macOS, or WSL:
+
+```bash
+podman build -t latex-devenv:apt -f Containerfile .
+podman run --rm -it --mount type=bind,source="$PWD/template",target=/workspace/template --workdir /workspace latex-devenv:apt bash -lc "bash ./ltx-build.sh template/lab-report-template/main.tex --clean"
+```
+
+Windows PowerShell:
+
+```powershell
+podman build -t latex-devenv:apt -f Containerfile .
+podman run --rm -it --mount type=bind,source="$($PWD.Path)\template",target=/workspace/template --workdir /workspace latex-devenv:apt bash -lc "bash ./ltx-build.sh template/lab-report-template/main.tex --clean"
+```
+
+Remove a standalone container or image:
+
+```bash
+podman ps -a
+podman rm -f <container-name-or-id>
+podman image rm latex-devenv:apt
+```
+
+Inspect and clean unused build cache:
+
+```bash
+podman system df
+podman system prune --build
+```
+
+Use podman system prune only after confirming that unused images, containers, networks, and cache can be removed.
 ### 2. Atomic Build Execution
 
 The build engine provides a standardized interface for both PowerShell and Bash.
@@ -268,7 +324,7 @@ git clean -fdX
 
 ## 🚀 CI/CD Integration <a id="cicd"></a>
 
-LtxEngine validates every template on both Windows/MiKTeX and Linux/Podman/TeX Live. The two jobs run independently with platform-specific caches. Only the Podman build is treated as the canonical PDF source.
+LtxEngine validates every template on both Windows/MiKTeX and Linux/Podman/TeX Live. The two jobs run in parallel with platform-specific caches. Only the Podman build is treated as the canonical PDF source.
 
 **Key Infrastructure Features:**
 
@@ -278,13 +334,13 @@ LtxEngine validates every template on both Windows/MiKTeX and Linux/Podman/TeX L
 
 * **Container isolation:** Builds do not depend on LaTeX packages installed on the runner host.
 
-* **Reusable Podman image cache:** CI saves the completed apt/TeX Live image immediately after its dependency smoke test and restores it on later runs. The environment remains reusable even if a subsequent template build fails. The cache key is derived from `Containerfile` and `installer.sh`, so package or image changes automatically trigger a clean rebuild.
+* **Reusable Podman image cache:** CI saves the completed apt/TeX Live image after its dependency smoke test. The cache key hashes both Containerfile and installer.sh, includes a version marker, and provides a platform-specific restore prefix. If the cached archive cannot be loaded, CI rebuilds the image.
 
 * **Non-interactive execution:** apt uses non-interactive mode, MiKTeX disables user interaction and enables automatic package installation, and Windows CI skips SumatraPDF and all desktop GUI components. Linux template builds have an eight-minute limit; Windows setup and compilation steps have independent hard timeouts.
 
 * **Artifact and repository output:** Podman-generated PDFs are uploaded as the `pdf-assets-apt-podman` artifact. After both platform jobs pass, pushes to `main` commit changed Podman PDFs through the dedicated `latex-devenv-pdf-bot` GitHub App; PRs and manually dispatched runs never write to the repository.
 
-The first CI run still downloads and installs the complete TeX Live environment. Later runs load the cached image unless `Containerfile` or `installer.sh` changes. Template and build-script changes do not invalidate the environment cache because the repository is mounted into `/workspace` when compilation starts.
+The first CI run still downloads and installs the complete TeX Live environment. Later runs load the cached image unless Containerfile, installer.sh, or the cache-generation marker changes. Template and build-script changes do not invalidate the environment cache because CI mounts only the host template directory at /workspace/template; the build script comes from the image. Linux/Podman and Windows/MiKTeX run as separate jobs in parallel because their toolchains and cache layouts are different.
 
 The PDF update commit contains `[skip ci]` to prevent recursive workflow runs. Configure the App ID as the repository variable `PDF_BOT_APP_ID` and its private key as the `PDF_BOT_PRIVATE_KEY` Actions secret. The dedicated GitHub App must have repository-scoped `Contents: Read and write` permission and be the only automation actor allowed to bypass the `main` ruleset.
 
@@ -292,7 +348,7 @@ For token safety, both build jobs have read-only repository access and check out
 
 The Windows job fetches only a verified Scoop installer commit and checks its exact SHA before execution. apt validates signed Ubuntu repository metadata, Scoop validates package hashes, and MiKTeX manages package metadata and checksums; the configured TUNA mirror uses HTTPS. The remaining external supply-chain boundary is the upstream Ubuntu, Scoop, MiKTeX, GitHub, and Docker Hub infrastructure; no long-lived repository token is exposed to either build job.
 
-The Podman image cache is Linux-specific. Windows uses a separate Scoop/MiKTeX installation: the installer preloads the templates' top-level packages and keeps automatic package installation enabled for transitive or future dependencies. A future Windows CI job should cache the applicable Scoop root plus `%LOCALAPPDATA%\MiKTeX` and `%APPDATA%\MiKTeX` for a user installation, or the corresponding `C:\ProgramData` directories for a global installation. It must not restore the Linux image archive. Linux CI also performs a smoke test for the required TeX packages and the Noto, TeX Gyre, and Latin Modern font families before compiling templates.
+The Podman image cache is Linux-specific. The current Windows job uses a separate Scoop/MiKTeX cache containing the user Scoop root plus LOCALAPPDATA/MiKTeX and APPDATA/MiKTeX; it never restores the Linux image archive. Linux CI also performs a smoke test for the required TeX packages and the Noto, TeX Gyre, and Latin Modern font families before compiling templates.
 
 ---
 
@@ -301,5 +357,5 @@ The Podman image cache is Linux-specific. Windows uses a separate Scoop/MiKTeX i
 * **Author**: [@autentisitet](https://github.com/autentisitet)
 * **Compiler**: XeLaTeX (Primary Engine)
 * **Distribution**: MiKTeX (Windows) / TeX Live (Debian, Ubuntu, WSL and Podman)
-* **Version**: 1.0.1
+* **Version**: 1.0.2
 * **License**: [MIT](LICENSE)

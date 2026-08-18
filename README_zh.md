@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Debian%2FUbuntu%20%7C%20Podman-blue)](https://github.com/autentisitet/latex-devenv)
 [![LaTeX](https://img.shields.io/badge/LaTeX-XeLaTeX-green)](https://tug.org/xetex/)
-[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/autentisitet/latex-devenv)
+[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/autentisitet/latex-devenv)
 
 面向本地 LaTeX 工作流的自动化开发环境。Windows 使用 MiKTeX，Bash、Podman 与 CI 使用统一的 Debian/Ubuntu apt TeX Live 环境。
 
@@ -89,24 +89,91 @@ chmod +x installer.sh ltx-build.sh
 
 ## Podman 容器 <a id="zh-podman"></a>
 
-容器构建时会运行 `installer.sh`，因此启动后的环境已经包含 CI 使用的全部 apt/LaTeX 包。
+容器构建时会运行 installer.sh，启动后的环境包含与 CI 相同的 Ubuntu apt/TeX Live 依赖。
+
+### 使用 Compose（推荐）
 
 ```bash
 podman compose up -d --build
 podman compose exec latex bash
 ```
 
-不使用 Compose 时：
+PDF 始终由容器内的 XeLaTeX 编译。宿主机只把 template 目录挂载到容器的 /workspace/template，用于提供源文件并接收生成的 PDF；构建脚本和 LaTeX 环境都来自镜像。
 
-```bash
-podman build -t latex-devenv:apt -f Containerfile .
-podman run --rm -it -v "${PWD}:/workspace:Z" latex-devenv:apt bash
-```
-
-停止 Compose 服务：
+停止服务：
 
 ```bash
 podman compose down
+```
+
+如果还要删除 Compose 创建的孤立容器：
+
+```bash
+podman compose down --remove-orphans
+```
+
+```bash
+podman compose images
+```
+
+确认镜像 ID 后删除：
+
+```bash
+podman image rm <image-id>
+```
+
+### 不使用 Compose
+
+Linux、macOS 或 WSL：
+
+```bash
+podman build -t latex-devenv:apt -f Containerfile .
+podman run --rm -it --mount type=bind,source="$PWD/template",target=/workspace/template --workdir /workspace latex-devenv:apt bash -lc "bash ./ltx-build.sh template/lab-report-template/main.tex --clean"
+```
+
+Windows PowerShell：
+
+```powershell
+podman build -t latex-devenv:apt -f Containerfile .
+podman run --rm -it --mount type=bind,source="$($PWD.Path)\template",target=/workspace/template --workdir /workspace latex-devenv:apt bash -lc "bash ./ltx-build.sh template/lab-report-template/main.tex --clean"
+```
+
+### 清理容器、镜像和构建缓存
+
+使用 podman run 时，--rm 会在容器退出后自动删除容器。若之前启动过未自动删除的容器，可先查看：
+
+```bash
+podman ps -a
+```
+
+删除指定容器：
+
+```bash
+podman rm -f <container-name-or-id>
+```
+
+删除这个项目的独立镜像：
+
+```bash
+podman image rm latex-devenv:apt
+```
+
+查看构建缓存占用：
+
+```bash
+podman system df
+```
+
+清理未使用的构建缓存：
+
+```bash
+podman system prune --build
+```
+
+确认不再需要未使用的镜像、容器和网络后，再执行更彻底的清理：
+
+```bash
+podman system prune
 ```
 
 ---
@@ -152,7 +219,7 @@ Debian、Ubuntu、WSL 或 Podman：
 
 ## CI/CD <a id="zh-ci"></a>
 
-当前 GitHub Actions 会同时检查 Windows/MiKTeX 和 Linux/Podman/TeX Live；只有 Podman 生成的 PDF 被视为最终版本：
+当前 GitHub Actions 会并行检查 Windows/MiKTeX 和 Linux/Podman/TeX Live；两者使用不同的工具链和缓存目录，因此保留为两个独立 job，而不是强行合并成一个包含大量条件分支的 matrix job。只有 Podman 生成的 PDF 被视为最终版本：
 
 1. Windows job 恢复或安装用户级 Scoop/MiKTeX，检查宏包并编译三个模板。
 2. Linux job 在 Ubuntu runner 上恢复或构建 Podman apt/TeX Live 镜像。
@@ -164,17 +231,33 @@ Debian、Ubuntu、WSL 或 Podman：
 
 这样本地 Podman 与 CI 使用完全相同的 apt 包列表，不依赖 runner 预装的 LaTeX 环境。
 
-缓存键由 `Containerfile` 和 `installer.sh` 的内容生成。修改基础镜像或 apt 包列表会自动重建缓存；只修改模板、README 或构建脚本不会重新下载整个 TeX Live 环境，因为编译时会将当前仓库挂载到容器的 `/workspace`。首次运行仍然需要完整安装，后续运行会直接加载缓存镜像。
+缓存键同时计算 Containerfile 和 installer.sh，并包含可手动递增的缓存代际标记。修改基础镜像、apt 包列表或缓存代际会自动重建镜像；缓存还提供按 Linux runner 匹配的前缀回退。若缓存归档无法被 Podman 加载，CI 会自动重新构建。只修改模板、README 或构建脚本不会重新下载整个 TeX Live 环境，因为 CI 只把宿主机的 template 目录挂载到容器的 /workspace/template，构建脚本来自镜像。
 
-Podman 镜像缓存只适用于 Linux。Windows 使用独立的 Scoop/MiKTeX 环境：安装器会预装模板直接使用的顶层宏包，同时保留 JIT 自动安装以处理间接依赖和未来新增依赖。以后如果恢复 Windows CI，用户级安装应分别缓存 Scoop 根目录、`%LOCALAPPDATA%\MiKTeX` 和 `%APPDATA%\MiKTeX`；全局安装则缓存对应的 `C:\ProgramData` 目录，不能复用 Linux 镜像归档。Linux 镜像缓存会在环境构建完成后立即保存，因此后续模板编译即使失败，下一次运行仍可复用已经准备好的 LaTeX 环境。
+Podman 镜像缓存只适用于 Linux。Windows CI 使用独立的 Scoop/MiKTeX 环境，并缓存用户级 Scoop、LOCALAPPDATA/MiKTeX 和 APPDATA/MiKTeX。两套缓存不能互相复用。MiKTeX 会预装模板直接使用的顶层宏包，同时保留 JIT 自动安装以处理间接依赖和未来新增依赖。
 
-CI 全程不需要 GUI 或人工确认：apt 使用无交互模式；MiKTeX 禁止用户交互并启用宏包自动安装；Windows CI 明确跳过 SumatraPDF 和所有桌面组件。Linux 模板最多构建八分钟，Windows 安装和编译步骤也分别设置了硬超时，异常弹窗不会一直拖到整个 job 超时。
+CI 的运行约束：
 
-自动生成的 PDF commit 会包含 `[skip ci]`，避免 bot 提交再次触发递归构建。请将 App ID 配置为仓库变量 `PDF_BOT_APP_ID`，将私钥配置为 Actions secret `PDF_BOT_PRIVATE_KEY`。专用 GitHub App 只需要当前仓库的 `Contents: Read and write`，并应作为唯一允许绕过 `main` Ruleset 的自动化身份。
+- apt 使用无交互模式；MiKTeX 禁止用户交互并启用宏包自动安装。
+- Windows CI 跳过 SumatraPDF 和所有桌面组件。
+- Linux 模板构建、Windows 安装和 Windows 编译都有独立硬超时。
+- 自动生成的 PDF commit 带有 [skip ci]，不会触发递归构建。
 
-为保护 token，两个构建 job 都只有仓库只读权限，并且 checkout 后不保留 Git 凭据。独立的 PDF 提交 job 也将默认 `GITHUB_TOKEN` 保持为只读，只在 checkout 和 push 时生成限定到当前仓库的短期 GitHub App installation token，并且不执行仓库中的构建脚本。官方 GitHub Actions 均固定到已核验的完整 commit SHA。PR 可以读取 `main` 的可信缓存，但不能写入新缓存或推送生成文件。
+PDF 提交需要两个仓库配置：
 
-Windows job 只 fetch 已核验的 Scoop 安装器 commit，并在执行前比较完整 SHA。apt 会验证 Ubuntu 仓库签名，Scoop 会验证包哈希，MiKTeX 管理宏包元数据和校验信息，配置的 TUNA 镜像使用 HTTPS。剩余供应链边界是 Ubuntu、Scoop、MiKTeX、GitHub 和 Docker Hub 的上游基础设施；两个构建 job 都无法访问长期仓库 token。
+- 仓库变量：PDF_BOT_APP_ID
+- Actions secret：PDF_BOT_PRIVATE_KEY
+
+专用 GitHub App 只需要当前仓库的 Contents: Read and write 权限，并应作为唯一允许绕过 main Ruleset 的自动化身份。
+
+安全边界：
+
+- 两个构建 job 只有仓库只读权限，checkout 后不保留 Git 凭据。
+- PDF 提交 job 默认使用只读 GITHUB_TOKEN，只在 checkout 和 push 时生成限定到当前仓库的短期 GitHub App token。
+- PDF 提交 job 不执行仓库中的构建脚本。
+- 官方 GitHub Actions 固定到已核验的完整 commit SHA。
+- PR 可以读取 main 的可信缓存，但不能写入新缓存或推送文件。
+- Windows job 会校验固定的 Scoop 安装器提交；apt、Scoop 和 MiKTeX 分别校验各自的包或元数据。
+- TUNA 镜像使用 HTTPS。剩余供应链边界是 Ubuntu、Scoop、MiKTeX、GitHub 和 Docker Hub 的上游基础设施。
 
 ---
 
@@ -205,7 +288,7 @@ git clean -fdX
 - 主要编译器：XeLaTeX
 - Windows 发行版：MiKTeX
 - Debian/Ubuntu/Podman 发行版：TeX Live
-- 版本：1.0.1
+- 版本：1.0.2
 - 许可证：[MIT](LICENSE)
 
 [返回顶部](#latex-devenv) · [English README](README.md)

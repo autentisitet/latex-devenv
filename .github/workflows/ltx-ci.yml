@@ -109,6 +109,7 @@ jobs:
         run: |
           podman run --rm \
             --volume "${PWD}/template:/workspace/template" \
+            --volume "${PWD}/ltx-build.sh:/workspace/ltx-build.sh:ro" \
             --workdir /workspace \
             latex-devenv:ci \
             bash -lc '

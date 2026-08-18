@@ -11,6 +11,7 @@ env:
   CI: true
   CONTINUOUS_INTEGRATION: true
   PODMAN_CACHE_GENERATION: 2026-08
+  WINDOWS_CACHE_GENERATION: 2026-08
 
 permissions:
   contents: read
@@ -151,13 +152,52 @@ jobs:
             ~/scoop
             ~/AppData/Local/MiKTeX
             ~/AppData/Roaming/MiKTeX
-          key: latex-devenv-miktex-${{ runner.os }}-b0ee913-${{ hashFiles('installer.ps1') }}
+          key: latex-devenv-miktex-${{ env.WINDOWS_CACHE_GENERATION }}-${{ runner.os }}-b0ee913-${{ hashFiles('installer.ps1') }}
+          restore-keys: |
+            latex-devenv-miktex-${{ env.WINDOWS_CACHE_GENERATION }}-${{ runner.os }}-b0ee913-
 
+      - name: Probe restored Windows environment
+        id: windows-cache-probe
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $scoopShims = Join-Path $env:USERPROFILE 'scoop\shims'
+          if (Test-Path $scoopShims) {
+              $env:PATH = "$scoopShims;$env:PATH"
+              $scoopShims | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+
+          $miktexRoot = Join-Path $env:USERPROFILE 'scoop\apps\miktex'
+          $xelatex = Get-ChildItem $miktexRoot -Filter xelatex.exe -File -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+          if ($xelatex) {
+              $miktexBin = $xelatex.DirectoryName
+              $env:PATH = "$miktexBin;$env:PATH"
+              $miktexBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+
+          $scoopReady = $false
+          if (Get-Command scoop -ErrorAction SilentlyContinue) {
+              & scoop --version *> $null
+              $scoopReady = $LASTEXITCODE -eq 0
+          }
+
+          $missingCommands = @('xelatex', 'latexmk', 'kpsewhich') |
+              Where-Object { -not (Get-Command $_ -ErrorAction SilentlyContinue) }
+          $latexReady = $missingCommands.Count -eq 0
+
+          "scoop-ready=$($scoopReady.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "latex-ready=$($latexReady.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
       - name: Bootstrap pinned Scoop installer
-        if: steps.windows-miktex-cache.outputs.cache-hit != 'true'
+        if: steps.windows-cache-probe.outputs.scoop-ready != 'true'
         shell: pwsh
         timeout-minutes: 5
         run: |
+          $cachedScoopRoot = Join-Path $env:USERPROFILE 'scoop'
+          if (Test-Path $cachedScoopRoot) {
+              Remove-Item -Path $cachedScoopRoot -Recurse -Force
+          }
+
           $installRoot = Join-Path $env:RUNNER_TEMP 'scoop-install'
           $expectedCommit = 'b0ee913725139b816f9178163af0aecdba07a7ed'
           New-Item -ItemType Directory -Path $installRoot | Out-Null
@@ -191,7 +231,7 @@ jobs:
           scoop --version
 
       - name: Install Windows MiKTeX environment
-        if: steps.windows-miktex-cache.outputs.cache-hit != 'true'
+        if: steps.windows-miktex-cache.outputs.cache-hit != 'true' || steps.windows-cache-probe.outputs.scoop-ready != 'true' || steps.windows-cache-probe.outputs.latex-ready != 'true'
         shell: pwsh
         timeout-minutes: 25
         run: .\installer.ps1
@@ -216,14 +256,14 @@ jobs:
           }
 
       - name: Store Windows MiKTeX cache
-        if: steps.windows-miktex-cache.outputs.cache-hit != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (steps.windows-miktex-cache.outputs.cache-hit != 'true' || steps.windows-cache-probe.outputs.scoop-ready != 'true' || steps.windows-cache-probe.outputs.latex-ready != 'true') && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: |
             ~/scoop
             ~/AppData/Local/MiKTeX
             ~/AppData/Roaming/MiKTeX
-          key: latex-devenv-miktex-${{ runner.os }}-b0ee913-${{ hashFiles('installer.ps1') }}
+          key: latex-devenv-miktex-${{ env.WINDOWS_CACHE_GENERATION }}-${{ runner.os }}-b0ee913-${{ hashFiles('installer.ps1') }}
 
       - name: Compile templates on Windows for verification
         shell: pwsh

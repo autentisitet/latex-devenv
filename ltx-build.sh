@@ -69,7 +69,7 @@ if command -v kpsewhich >/dev/null 2>&1; then
               while read -r pkg; do
                   [ -z "$pkg" ] && continue
                   kpsewhich "${pkg}.sty" >/dev/null 2>&1 || kpsewhich "${pkg}.cls" >/dev/null 2>&1 || echo "$pkg"
-              done | tr '\n' ' ')
+              done | tr '\n' ' ') || missing=""
     if [ -n "$missing" ]; then
         printf "\033[1;33m[!] Missing assets: %s (add the corresponding apt packages)\033[0m\n" "$missing"
     fi
